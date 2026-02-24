@@ -1,0 +1,248 @@
+import { Outlet, useNavigate, useLocation } from "react-router";
+import { toast } from "sonner";
+import imgEllipse1 from "figma:asset/dcce5012742dbc156a98520c179d4f83b729b23b.png";
+import imgCe376E5FD79248AaA9C0B819Bff1258ARemovebgPreview1 from "figma:asset/1d13d2f000eaae8aa0d9d99618aa99469d80c1fb.png";
+import {
+  DashboardIcon,
+  SettingsIcon,
+  ProfileIcon,
+  TransactionsIcon,
+  LogoutIcon,
+} from "./shared-icons";
+import { useTheme, themeColors } from "./theme-context";
+
+/* Background blobs */
+
+function BackgroundBlobs() {
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      <div className="absolute h-[912px] left-[184px] top-[-376px] w-[797px]">
+        <div className="absolute inset-[-9.74%_-12.92%_-9.75%_-12.92%]">
+          <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 1003 1089.77">
+            <g filter="url(#filter0_f_bg1)">
+              <circle cx="501.5" cy="501.5" fill="url(#paint0_bg1)" r="301.5" />
+            </g>
+            <g filter="url(#filter1_f_bg1)">
+              <rect fill="url(#paint1_bg1)" height="411.069" width="289.734" x="356.633" y="478.704" />
+            </g>
+            <defs>
+              <filter colorInterpolationFilters="sRGB" filterUnits="userSpaceOnUse" height="1003" id="filter0_f_bg1" width="1003" x="0" y="0">
+                <feFlood floodOpacity="0" result="BackgroundImageFix" />
+                <feBlend in="SourceGraphic" in2="BackgroundImageFix" mode="normal" result="shape" />
+                <feGaussianBlur result="effect1_foregroundBlur" stdDeviation="100" />
+              </filter>
+              <filter colorInterpolationFilters="sRGB" filterUnits="userSpaceOnUse" height="811.07" id="filter1_f_bg1" width="689.734" x="156.633" y="278.704">
+                <feFlood floodOpacity="0" result="BackgroundImageFix" />
+                <feBlend in="SourceGraphic" in2="BackgroundImageFix" mode="normal" result="shape" />
+                <feGaussianBlur result="effect1_foregroundBlur" stdDeviation="100" />
+              </filter>
+              <linearGradient gradientUnits="userSpaceOnUse" id="paint0_bg1" x1="501.5" x2="501.5" y1="200" y2="803">
+                <stop stopColor="#00C2FF" stopOpacity="0" />
+                <stop offset="1" stopColor="#FF29C3" />
+              </linearGradient>
+              <linearGradient gradientUnits="userSpaceOnUse" id="paint1_bg1" x1="501.5" x2="501.5" y1="478.704" y2="889.773">
+                <stop stopColor="#184BFF" stopOpacity="0" />
+                <stop offset="1" stopColor="#174AFF" />
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+      </div>
+      <div className="absolute h-[912px] left-[1147px] top-[-209px] w-[797px]">
+        <div className="absolute inset-[-9.74%_-12.92%_-9.75%_-12.92%]">
+          <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 1003 1089.77">
+            <g filter="url(#filter0_f_bg2)">
+              <circle cx="501.5" cy="501.5" fill="url(#paint0_bg2)" r="301.5" />
+            </g>
+            <g filter="url(#filter1_f_bg2)">
+              <rect fill="url(#paint1_bg2)" height="411.069" width="289.734" x="356.633" y="478.704" />
+            </g>
+            <defs>
+              <filter colorInterpolationFilters="sRGB" filterUnits="userSpaceOnUse" height="1003" id="filter0_f_bg2" width="1003" x="0" y="0">
+                <feFlood floodOpacity="0" result="BackgroundImageFix" />
+                <feBlend in="SourceGraphic" in2="BackgroundImageFix" mode="normal" result="shape" />
+                <feGaussianBlur result="effect1_foregroundBlur" stdDeviation="100" />
+              </filter>
+              <filter colorInterpolationFilters="sRGB" filterUnits="userSpaceOnUse" height="811.07" id="filter1_f_bg2" width="689.734" x="156.633" y="278.704">
+                <feFlood floodOpacity="0" result="BackgroundImageFix" />
+                <feBlend in="SourceGraphic" in2="BackgroundImageFix" mode="normal" result="shape" />
+                <feGaussianBlur result="effect1_foregroundBlur" stdDeviation="100" />
+              </filter>
+              <linearGradient gradientUnits="userSpaceOnUse" id="paint0_bg2" x1="501.5" x2="501.5" y1="200" y2="803">
+                <stop stopColor="#00C2FF" stopOpacity="0" />
+                <stop offset="1" stopColor="#FF29C3" />
+              </linearGradient>
+              <linearGradient gradientUnits="userSpaceOnUse" id="paint1_bg2" x1="501.5" x2="501.5" y1="478.704" y2="889.773">
+                <stop stopColor="#184BFF" stopOpacity="0" />
+                <stop offset="1" stopColor="#174AFF" />
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* Light background blobs */
+
+function LightBackgroundBlobs() {
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-25">
+      <BackgroundBlobs />
+    </div>
+  );
+}
+
+/* Nav items config */
+
+const navItems = [
+  { path: "/", label: "Dashboard", icon: DashboardIcon },
+  { path: "/settings", label: "Settings", icon: SettingsIcon },
+  { path: "/profile", label: "Profile", icon: ProfileIcon },
+  { path: "/transactions", label: "Transactions", icon: TransactionsIcon },
+];
+
+/* Sidebar */
+
+function Sidebar() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { isDark } = useTheme();
+  const tc = themeColors(isDark);
+
+  const isActive = (path: string) => {
+    if (path === "/") return location.pathname === "/";
+    return location.pathname.startsWith(path);
+  };
+
+  return (
+    <div
+      className="flex flex-col w-[280px] shrink-0 h-full pt-[20px] pb-[40px]"
+      style={{ background: tc.sidebarBg }}
+    >
+      {/* Logo area */}
+      <div
+        className="flex items-center gap-[8px] px-[20px] mb-[40px] cursor-pointer"
+        onClick={() => navigate("/")}
+      >
+        <div className="size-[85px] relative shrink-0">
+          <img alt="" className="absolute inset-0 max-w-none object-cover pointer-events-none size-full" src={imgCe376E5FD79248AaA9C0B819Bff1258ARemovebgPreview1} />
+        </div>
+        <div className="flex flex-col">
+          <p className="font-['Montserrat',sans-serif] font-semibold text-[24px]" style={{ color: tc.textPrimary }}>WEALTH WARDS</p>
+          <p className="font-['Montserrat',sans-serif] font-semibold text-[14px]" style={{ color: tc.textPrimary }}>YOUR FINANCIAL GUARDIAN</p>
+        </div>
+      </div>
+
+      {/* Nav items */}
+      <div className="flex flex-col gap-[8px] px-[25px] flex-1">
+        {navItems.map((item) => {
+          const active = isActive(item.path);
+          const Icon = item.icon;
+          return (
+            <button
+              key={item.path}
+              onClick={() => navigate(item.path)}
+              className={`flex gap-[19px] items-center px-[25px] py-[16px] rounded-[16px] cursor-pointer transition-all duration-200 ${
+                active ? "" : ""
+              }`}
+              style={
+                active
+                  ? {
+                      backgroundImage:
+                        "linear-gradient(129.101deg, rgb(31, 142, 190) 5.3557%, rgb(68, 4, 149) 29.462%, rgb(68, 4, 149) 56.025%, rgb(177, 2, 205) 81.92%)",
+                    }
+                  : { backgroundColor: "transparent" }
+              }
+              onMouseEnter={(e) => {
+                if (!active) e.currentTarget.style.backgroundColor = tc.hoverBg;
+              }}
+              onMouseLeave={(e) => {
+                if (!active) e.currentTarget.style.backgroundColor = "transparent";
+              }}
+            >
+              <Icon />
+              <p
+                className="font-['Inter',sans-serif] font-medium text-[18px]"
+                style={{ color: active ? "#ffffff" : tc.textMuted }}
+              >
+                {item.label}
+              </p>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Log Out */}
+      <button
+        className="flex gap-[19px] items-center px-[50px] cursor-pointer hover:opacity-80 transition-opacity"
+        onClick={() => {
+          toast.success("Logged out successfully");
+          navigate("/");
+        }}
+      >
+        <LogoutIcon />
+        <p className="font-['Inter',sans-serif] font-medium text-[18px]" style={{ color: tc.textMuted }}>Log Out</p>
+      </button>
+    </div>
+  );
+}
+
+/* Top bar */
+
+function TopBar() {
+  const navigate = useNavigate();
+  const { isDark } = useTheme();
+  const tc = themeColors(isDark);
+
+  return (
+    <div className="flex items-center justify-end gap-[16px] px-[20px] py-[16px] shrink-0">
+      <a
+        href="https://wagmi.cktransientinn.tech/app/"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="border border-[rgba(255,255,255,0.47)] overflow-clip rounded-[10px] px-[10px] py-[2px] cursor-pointer hover:opacity-90 transition-opacity no-underline"
+        style={{
+          backgroundImage: "linear-gradient(187.815deg, rgb(24, 200, 255) 14.89%, rgb(147, 63, 254) 85.846%)",
+        }}
+      >
+        <p className="font-['Inter',sans-serif] font-semibold text-[16px] text-center text-white">
+          Connect Account
+        </p>
+      </a>
+      <button
+        className="flex items-center gap-[12px] cursor-pointer hover:opacity-80 transition-opacity"
+        onClick={() => navigate("/profile")}
+      >
+        <p className="font-['Inter',sans-serif] font-medium text-[18px]" style={{ color: tc.textMuted }}>Lindsay</p>
+        <div className="size-[48px] shrink-0 rounded-full overflow-hidden">
+          <img alt="" className="size-full object-cover" src={imgEllipse1} />
+        </div>
+      </button>
+    </div>
+  );
+}
+
+/* Root Layout */
+
+export function RootLayout() {
+  const { isDark } = useTheme();
+  const tc = themeColors(isDark);
+
+  return (
+    <div className="relative w-full h-full min-h-screen overflow-hidden transition-colors duration-300" style={{ backgroundColor: tc.pageBg }}>
+      {isDark && <BackgroundBlobs />}
+      {!isDark && <LightBackgroundBlobs />}
+      <div className="relative z-10 flex h-full min-h-screen">
+        <Sidebar />
+        <div className="flex-1 flex flex-col min-w-0 overflow-auto">
+          <TopBar />
+          <div className="flex-1 px-[20px] pb-[20px] overflow-auto">
+            <Outlet />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

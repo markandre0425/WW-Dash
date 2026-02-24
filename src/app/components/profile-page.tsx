@@ -1,0 +1,171 @@
+import { useState } from "react";
+import { toast } from "sonner";
+import imgEllipse1 from "figma:asset/dcce5012742dbc156a98520c179d4f83b729b23b.png";
+import { EthLogo, ChevronDownIcon } from "./shared-icons";
+import { PrimaryButton, SecondaryButton } from "./button-styles";
+
+export function ProfilePage() {
+  const [displayName, setDisplayName] = useState("Lindsay");
+  const [email, setEmail] = useState("lindsay@wealthwards.io");
+  const [bio, setBio] = useState("Crypto enthusiast and long-term hodler. Building wealth, one block at a time.");
+  const [editing, setEditing] = useState(false);
+
+  const wallets = [
+    { network: "Ethereum", address: "0x7a3F...9c2E", balance: "12.45 ETH", usd: "$ 35,467.94" },
+    { network: "Bitcoin", address: "bc1q8...k3mf", balance: "0.892 BTC", usd: "$ 56,639.57" },
+    { network: "Polygon", address: "0x4b2D...7f1A", balance: "8,420 MATIC", usd: "$ 5,894.00" },
+  ];
+
+  const recentActivity = [
+    { action: "Received", amount: "2.5 ETH", from: "0x9d2F...4a1B", time: "2 hours ago", type: "in" as const },
+    { action: "Sent", amount: "0.1 BTC", from: "bc1q3...m8nf", time: "5 hours ago", type: "out" as const },
+    { action: "Swapped", amount: "1.2 ETH → 3,200 USDC", from: "Uniswap V2", time: "1 day ago", type: "swap" as const },
+    { action: "Received", amount: "500 CSCS", from: "Staking Rewards", time: "2 days ago", type: "in" as const },
+  ];
+
+  const handleSave = () => {
+    setEditing(false);
+    toast.success("Profile updated successfully!");
+  };
+
+  return (
+    <div className="flex gap-[20px] flex-1">
+      <div className="flex-1 flex flex-col gap-[20px] max-w-[900px]">
+        {/* Profile Card */}
+        <div className="backdrop-blur-[10px] bg-[#1c1c1c]/60 rounded-[16px] p-[24px]">
+          <div className="flex items-start gap-[24px]">
+            <div className="size-[96px] shrink-0 rounded-full overflow-hidden border-2 border-[rgba(0,170,255,0.5)]">
+              <img alt="" className="size-full object-cover" src={imgEllipse1} />
+            </div>
+            <div className="flex-1">
+              <div className="flex items-center justify-between mb-[16px]">
+                <div>
+                  {editing ? (
+                    <input
+                      className="bg-[#2b2b2b] rounded-[8px] px-[12px] py-[6px] font-['Inter',sans-serif] font-bold text-[24px] text-white outline-none w-full"
+                      value={displayName}
+                      onChange={(e) => setDisplayName(e.target.value)}
+                    />
+                  ) : (
+                    <p className="font-['Inter',sans-serif] font-bold text-[24px] text-white">{displayName}</p>
+                  )}
+                  {editing ? (
+                    <input
+                      className="bg-[#2b2b2b] rounded-[8px] px-[12px] py-[4px] font-['Inter',sans-serif] text-[14px] text-[#86909c] outline-none mt-[4px] w-full"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                    />
+                  ) : (
+                    <p className="font-['Inter',sans-serif] font-normal text-[14px] text-[#86909c] mt-[4px]">{email}</p>
+                  )}
+                </div>
+                {editing ? (
+                  <div className="flex gap-[8px]">
+                    <SecondaryButton onClick={() => setEditing(false)}>
+                      Cancel
+                    </SecondaryButton>
+                    <PrimaryButton onClick={handleSave}>
+                      Save
+                    </PrimaryButton>
+                  </div>
+                ) : (
+                  <PrimaryButton onClick={() => setEditing(true)}>
+                    Edit Profile
+                  </PrimaryButton>
+                )}
+              </div>
+              {editing ? (
+                <textarea
+                  className="bg-[#2b2b2b] rounded-[8px] px-[12px] py-[8px] font-['Inter',sans-serif] text-[14px] text-white/80 outline-none w-full resize-none"
+                  rows={2}
+                  value={bio}
+                  onChange={(e) => setBio(e.target.value)}
+                />
+              ) : (
+                <p className="font-['Inter',sans-serif] font-normal text-[14px] text-white/80">{bio}</p>
+              )}
+              <div className="flex gap-[24px] mt-[16px]">
+                <div>
+                  <p className="font-['Inter',sans-serif] font-bold text-[20px] text-white">$ 97,901.51</p>
+                  <p className="font-['Inter',sans-serif] font-normal text-[12px] text-[#86909c]">Total Portfolio</p>
+                </div>
+                <div>
+                  <p className="font-['Inter',sans-serif] font-bold text-[20px] text-[#00ffa3]">+12.3%</p>
+                  <p className="font-['Inter',sans-serif] font-normal text-[12px] text-[#86909c]">30d Change</p>
+                </div>
+                <div>
+                  <p className="font-['Inter',sans-serif] font-bold text-[20px] text-white">47</p>
+                  <p className="font-['Inter',sans-serif] font-normal text-[12px] text-[#86909c]">Transactions</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Connected Wallets */}
+        <div className="backdrop-blur-[10px] bg-[#1c1c1c]/60 rounded-[16px] p-[24px]">
+          <div className="flex items-center justify-between mb-[20px]">
+            <h2 className="font-['Inter',sans-serif] font-bold text-[24px] text-white">Connected Wallets</h2>
+            <PrimaryButton onClick={() => toast("Connect a new wallet...")}>
+              + Add Wallet
+            </PrimaryButton>
+          </div>
+          <div className="flex flex-col gap-[12px]">
+            {wallets.map((wallet, i) => (
+              <div key={i} className="flex items-center justify-between bg-[#2b2b2b]/50 rounded-[12px] px-[16px] py-[12px]">
+                <div className="flex items-center gap-[12px]">
+                  <div className="flex items-center gap-[4px] bg-[rgba(0,0,0,0.4)] rounded-[25px] pl-[5px] pr-[10px] py-[5px]">
+                    <div className="flex items-start p-[5px] rounded-[25px] shrink-0" style={{ backgroundImage: "linear-gradient(144.638deg, rgb(255, 255, 255) 6.1321%, rgba(217, 217, 217, 0.71) 99.078%)" }}>
+                      <EthLogo size={12} />
+                    </div>
+                    <p className="font-['Inter',sans-serif] font-medium text-[12px] text-white">{wallet.network}</p>
+                    <ChevronDownIcon />
+                  </div>
+                  <p className="font-['Inter',sans-serif] font-normal text-[14px] text-white/60">{wallet.address}</p>
+                </div>
+                <div className="text-right">
+                  <p className="font-['Inter',sans-serif] font-semibold text-[16px] text-white">{wallet.balance}</p>
+                  <p className="font-['Inter',sans-serif] font-normal text-[12px] text-[#86909c]">{wallet.usd}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Recent Activity */}
+        <div className="backdrop-blur-[10px] bg-[#1c1c1c]/60 rounded-[16px] p-[24px]">
+          <h2 className="font-['Inter',sans-serif] font-bold text-[24px] text-white mb-[20px]">Recent Activity</h2>
+          <div className="flex flex-col gap-[12px]">
+            {recentActivity.map((activity, i) => (
+              <div key={i} className="flex items-center justify-between bg-[#2b2b2b]/50 rounded-[12px] px-[16px] py-[12px]">
+                <div className="flex items-center gap-[12px]">
+                  <div
+                    className={`size-[36px] rounded-full flex items-center justify-center text-[16px] ${
+                      activity.type === "in"
+                        ? "bg-[#00ffa3]/20"
+                        : activity.type === "out"
+                        ? "bg-[#fb035c]/20"
+                        : "bg-[rgba(0,170,255,0.2)]"
+                    }`}
+                  >
+                    {activity.type === "in" ? "↓" : activity.type === "out" ? "↑" : "⇆"}
+                  </div>
+                  <div>
+                    <p className="font-['Inter',sans-serif] font-medium text-[16px] text-white">{activity.action}</p>
+                    <p className="font-['Inter',sans-serif] font-normal text-[12px] text-[#86909c]">{activity.from}</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className={`font-['Inter',sans-serif] font-semibold text-[16px] ${activity.type === "in" ? "text-[#00ffa3]" : activity.type === "out" ? "text-[#fb035c]" : "text-white"}`}>
+                    {activity.type === "in" ? "+" : activity.type === "out" ? "-" : ""}{activity.amount}
+                  </p>
+                  <p className="font-['Inter',sans-serif] font-normal text-[12px] text-[#86909c]">{activity.time}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
