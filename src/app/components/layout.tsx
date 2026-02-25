@@ -1,5 +1,6 @@
 import { Outlet, useNavigate, useLocation } from "react-router";
 import { toast } from "sonner";
+import { useState } from "react";
 import imgEllipse1 from "figma:asset/dcce5012742dbc156a98520c179d4f83b729b23b.png";
 import imgCe376E5FD79248AaA9C0B819Bff1258ARemovebgPreview1 from "figma:asset/1d13d2f000eaae8aa0d9d99618aa99469d80c1fb.png";
 import {
@@ -8,8 +9,12 @@ import {
   ProfileIcon,
   TransactionsIcon,
   LogoutIcon,
+  HamburgerIcon,
+  CloseIcon,
 } from "./shared-icons";
 import { useTheme, themeColors } from "./theme-context";
+import { Button } from "./button-styles";
+import { useIsMobile } from "./ui/use-mobile";
 
 /* Background blobs */
 
@@ -202,14 +207,11 @@ function TopBar() {
         href="https://wagmi.cktransientinn.tech/app/"
         target="_blank"
         rel="noopener noreferrer"
-        className="border border-[rgba(255,255,255,0.47)] overflow-clip rounded-[10px] px-[10px] py-[2px] cursor-pointer hover:opacity-90 transition-opacity no-underline"
-        style={{
-          backgroundImage: "linear-gradient(187.815deg, rgb(24, 200, 255) 14.89%, rgb(147, 63, 254) 85.846%)",
-        }}
+        className="inline-block"
       >
-        <p className="font-['Inter',sans-serif] font-semibold text-[16px] text-center text-white">
+        <Button size="md">
           Connect Account
-        </p>
+        </Button>
       </a>
       <button
         className="flex items-center gap-[12px] cursor-pointer hover:opacity-80 transition-opacity"
@@ -224,24 +226,220 @@ function TopBar() {
   );
 }
 
+/* Safe Area Wrapper */
+
+function SafeArea({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      className="flex-1 flex flex-col min-w-0 overflow-y-auto"
+      style={{
+        paddingLeft: 'max(0px, env(safe-area-inset-left, 0px))',
+        paddingRight: 'max(0px, env(safe-area-inset-right, 0px))',
+        paddingTop: 'max(0px, env(safe-area-inset-top, 0px))',
+        paddingBottom: 'max(0px, env(safe-area-inset-bottom, 0px))',
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+/* Mobile Header */
+
+function MobileHeader({ onMenuClick }: { onMenuClick: () => void }) {
+  const { isDark } = useTheme();
+  const tc = themeColors(isDark);
+
+  return (
+    <div
+      className="flex items-center gap-[12px] px-[16px] py-[12px] shrink-0"
+      style={{
+        background: tc.sidebarBg,
+        paddingLeft: 'max(16px, env(safe-area-inset-left, 0px))',
+        paddingRight: 'max(16px, env(safe-area-inset-right, 0px))',
+      }}
+    >
+      <button
+        onClick={onMenuClick}
+        className="p-[8px] hover:opacity-80 transition-opacity"
+      >
+        <HamburgerIcon />
+      </button>
+      <div className="flex-1" />
+      <a
+        href="https://wagmi.cktransientinn.tech/app/"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-block"
+      >
+        <Button size="sm">Connect Account</Button>
+      </a>
+    </div>
+  );
+}
+
+/* Mobile Sidebar Overlay */
+
+function MobileSidebarOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { isDark } = useTheme();
+  const tc = themeColors(isDark);
+
+  const isActive = (path: string) => {
+    if (path === "/") return location.pathname === "/";
+    return location.pathname.startsWith(path);
+  };
+
+  const handleNavClick = (path: string) => {
+    navigate(path);
+    onClose();
+  };
+
+  return (
+    <>
+      {/* Backdrop */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/40"
+          onClick={onClose}
+        />
+      )}
+
+      {/* Sidebar */}
+      <div
+        className={`fixed left-0 top-0 h-full w-[280px] flex flex-col pt-[20px] pb-[40px] z-50 transition-transform duration-300 ease-in-out backdrop-blur-[24px] ${
+          isOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+        style={{
+          background: isDark ? 'rgba(11,11,15,0.92)' : 'rgba(255,255,255,0.88)',
+          borderRight: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'}`,
+          paddingTop: 'max(20px, env(safe-area-inset-top, 0px))',
+          paddingBottom: 'max(40px, env(safe-area-inset-bottom, 0px))',
+        }}
+      >
+        {/* Close Button */}
+        <div className="flex justify-end px-[16px] mb-[16px]">
+          <button
+            onClick={onClose}
+            className="p-[8px] hover:opacity-80 transition-opacity"
+          >
+            <CloseIcon />
+          </button>
+        </div>
+
+        {/* Logo area */}
+        <div
+          className="flex items-center gap-[8px] px-[20px] mb-[40px] cursor-pointer"
+          onClick={() => handleNavClick("/")}
+        >
+          <div className="size-[60px] relative shrink-0">
+            <img alt="" className="absolute inset-0 max-w-none object-cover pointer-events-none size-full" src={imgCe376E5FD79248AaA9C0B819Bff1258ARemovebgPreview1} />
+          </div>
+          <div className="flex flex-col">
+            <p className="font-['Montserrat',sans-serif] font-semibold text-[16px]" style={{ color: tc.textPrimary }}>WEALTH WARDS</p>
+            <p className="font-['Montserrat',sans-serif] font-semibold text-[11px]" style={{ color: tc.textPrimary }}>YOUR FINANCIAL GUARDIAN</p>
+          </div>
+        </div>
+
+        {/* Nav items */}
+        <div className="flex flex-col gap-[8px] px-[25px] flex-1">
+          {navItems.map((item) => {
+            const active = isActive(item.path);
+            const Icon = item.icon;
+            return (
+              <button
+                key={item.path}
+                onClick={() => handleNavClick(item.path)}
+                className={`flex gap-[19px] items-center px-[25px] py-[16px] rounded-[16px] cursor-pointer transition-all duration-200`}
+                style={
+                  active
+                    ? {
+                        backgroundImage:
+                          "linear-gradient(129.101deg, rgb(31, 142, 190) 5.3557%, rgb(68, 4, 149) 29.462%, rgb(68, 4, 149) 56.025%, rgb(177, 2, 205) 81.92%)",
+                      }
+                    : { backgroundColor: "transparent" }
+                }
+                onMouseEnter={(e) => {
+                  if (!active) e.currentTarget.style.backgroundColor = tc.hoverBg;
+                }}
+                onMouseLeave={(e) => {
+                  if (!active) e.currentTarget.style.backgroundColor = "transparent";
+                }}
+              >
+                <Icon />
+                <p
+                  className="font-['Inter',sans-serif] font-medium text-[18px]"
+                  style={{ color: active ? "#ffffff" : tc.textMuted }}
+                >
+                  {item.label}
+                </p>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Log Out */}
+        <button
+          className="flex gap-[19px] items-center px-[50px] cursor-pointer hover:opacity-80 transition-opacity"
+          onClick={() => {
+            toast.success("Logged out successfully");
+            handleNavClick("/");
+          }}
+        >
+          <LogoutIcon />
+          <p className="font-['Inter',sans-serif] font-medium text-[18px]" style={{ color: tc.textMuted }}>Log Out</p>
+        </button>
+      </div>
+    </>
+  );
+}
+
 /* Root Layout */
 
 export function RootLayout() {
   const { isDark } = useTheme();
   const tc = themeColors(isDark);
+  const isMobile = useIsMobile();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
     <div className="relative w-full h-full min-h-screen overflow-hidden transition-colors duration-300" style={{ backgroundColor: tc.pageBg }}>
       {isDark && <BackgroundBlobs />}
       {!isDark && <LightBackgroundBlobs />}
       <div className="relative z-10 flex h-full min-h-screen">
-        <Sidebar />
-        <div className="flex-1 flex flex-col min-w-0 overflow-auto">
-          <TopBar />
-          <div className="flex-1 px-[20px] pb-[20px] overflow-auto">
-            <Outlet />
-          </div>
-        </div>
+        {/* Desktop Sidebar */}
+        {!isMobile && <Sidebar />}
+
+        {/* Content Area */}
+        <SafeArea>
+          {isMobile ? (
+            <>
+              <MobileHeader onMenuClick={() => setMobileMenuOpen(true)} />
+              <div
+                className="flex-1 px-[16px] pb-[20px] overflow-y-auto"
+                style={{
+                  paddingRight: 'max(16px, env(safe-area-inset-right, 0px))',
+                  paddingBottom: 'max(20px, env(safe-area-inset-bottom, 0px))',
+                }}
+              >
+                <Outlet />
+              </div>
+            </>
+          ) : (
+            <>
+              <TopBar />
+              <div className="flex-1 px-[20px] pb-[20px] overflow-auto">
+                <Outlet />
+              </div>
+            </>
+          )}
+        </SafeArea>
+
+        {/* Mobile Sidebar Overlay */}
+        {isMobile && (
+          <MobileSidebarOverlay isOpen={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} />
+        )}
       </div>
     </div>
   );

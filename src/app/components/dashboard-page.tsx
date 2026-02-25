@@ -24,23 +24,7 @@ import { useTheme, themeColors } from "./theme-context";
 import { Button, PrimaryButton, SecondaryButton } from "./button-styles";
 import { BlockchainAPI } from "../services/blockchain-api";
 
-/*
- * ─── Multi-Provider Blockchain API ───
- *
- * For token data, balance queries, and address verification:
- * - Use BlockchainAPI directly or custom hooks from useBlockchainAPI.ts
- * - Automatic fallback: Moralis → Alchemy → Etherscan
- * - Example: const tokenData = await BlockchainAPI.getTokenData('0x...')
- *
- * For price data:
- * - Currently using CoinGecko in useCryptoPrices hook below
- * - Can switch to BlockchainAPI.getTokenPrice() if needed
- * - BlockchainAPI also provides getMultipleTokenPrices() for bulk queries
- *
- * Check browser console to see which provider is being used
- */
-
-/* ─── CoinGecko API hook ─── */
+/* CoinGecko API hook */
 
 interface PricePoint {
   date: string;
@@ -414,40 +398,40 @@ function formatUsd(value: number) {
 
 function StatsRow({ savings, rewards, apy, loading }: { savings: number; rewards: number; apy: number; loading: boolean }) {
   return (
-    <div className="flex gap-[20px] items-center flex-wrap">
-      <div className="flex items-center gap-[12px] bg-[rgba(176,176,176,0.1)] rounded-[14px] px-[16px] py-[10px]">
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-[12px] sm:gap-[20px] w-full">
+      <div className="flex items-center gap-[12px] bg-[rgba(176,176,176,0.1)] rounded-[14px] px-[12px] sm:px-[16px] py-[10px] min-w-0">
         <MoneysIcon />
-        <div>
-          <p className="font-['Inter',sans-serif] font-medium text-[14px] text-white">SAVINGS</p>
-          <p className="font-['Inter',sans-serif] font-bold text-[24px] text-white uppercase">
+        <div className="min-w-0">
+          <p className="font-['Inter',sans-serif] font-medium text-[12px] sm:text-[14px] text-white">SAVINGS</p>
+          <p className="font-['Inter',sans-serif] font-bold text-[18px] sm:text-[24px] text-white uppercase truncate">
             {loading ? (
-              <span className="inline-block w-[80px] h-[24px] bg-white/10 rounded animate-pulse" />
+              <span className="inline-block w-[60px] sm:w-[80px] h-[20px] sm:h-[24px] bg-white/10 rounded animate-pulse" />
             ) : (
               `$ ${formatUsd(savings)}`
             )}
           </p>
         </div>
       </div>
-      <div className="flex items-center gap-[12px] bg-[rgba(176,176,176,0.1)] rounded-[14px] px-[16px] py-[10px]">
+      <div className="flex items-center gap-[12px] bg-[rgba(176,176,176,0.1)] rounded-[14px] px-[12px] sm:px-[16px] py-[10px] min-w-0">
         <WalletMoneyIcon />
-        <div>
-          <p className="font-['Inter',sans-serif] font-medium text-[14px] text-white">REWARDS</p>
-          <p className="font-['Inter',sans-serif] font-bold text-[24px] text-white uppercase">
+        <div className="min-w-0">
+          <p className="font-['Inter',sans-serif] font-medium text-[12px] sm:text-[14px] text-white">REWARDS</p>
+          <p className="font-['Inter',sans-serif] font-bold text-[18px] sm:text-[24px] text-white uppercase truncate">
             {loading ? (
-              <span className="inline-block w-[80px] h-[24px] bg-white/10 rounded animate-pulse" />
+              <span className="inline-block w-[60px] sm:w-[80px] h-[20px] sm:h-[24px] bg-white/10 rounded animate-pulse" />
             ) : (
               `$ ${formatUsd(rewards)}`
             )}
           </p>
         </div>
       </div>
-      <div className="flex items-center gap-[12px] bg-[rgba(176,176,176,0.1)] rounded-[14px] px-[16px] py-[10px]">
+      <div className="flex items-center gap-[12px] bg-[rgba(176,176,176,0.1)] rounded-[14px] px-[12px] sm:px-[16px] py-[10px] min-w-0">
         <ChartSquareIcon />
-        <div>
-          <p className="font-['Inter',sans-serif] font-medium text-[14px] text-white">APY</p>
-          <p className="font-['Inter',sans-serif] font-bold text-[24px] text-white uppercase">
+        <div className="min-w-0">
+          <p className="font-['Inter',sans-serif] font-medium text-[12px] sm:text-[14px] text-white">APY</p>
+          <p className="font-['Inter',sans-serif] font-bold text-[18px] sm:text-[24px] text-white uppercase">
             {loading ? (
-              <span className="inline-block w-[60px] h-[24px] bg-white/10 rounded animate-pulse" />
+              <span className="inline-block w-[40px] sm:w-[60px] h-[20px] sm:h-[24px] bg-white/10 rounded animate-pulse" />
             ) : (
               `+ ${apy.toFixed(1)}%`
             )}
@@ -525,7 +509,7 @@ function PriceChart() {
       </div>
 
       {/* Chart */}
-      <div className="w-full" style={{ height: 280, minWidth: 0 }}>
+      <div className="w-full h-[200px] sm:h-[280px]" style={{ minWidth: 0 }}>
         {loading ? (
           <div className="flex items-center justify-center h-full">
             <div className="flex items-center gap-[8px]">
@@ -534,7 +518,7 @@ function PriceChart() {
             </div>
           </div>
         ) : (
-          <ResponsiveContainer width="100%" height={280}>
+          <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={data} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
               <defs>
                 <linearGradient id="ethGradient" x1="0" y1="0" x2="0" y2="1">
@@ -690,9 +674,9 @@ function ActionCard() {
   };
 
   return (
-    <div className="backdrop-blur-[10px] bg-[#1c1c1c]/60 rounded-[16px] p-[20px] flex-1">
+    <div className="backdrop-blur-[10px] bg-[#1c1c1c]/60 rounded-[16px] p-[16px] sm:p-[20px]">
       {/* Tab toggle */}
-      <div className="flex items-center justify-between mb-[16px]">
+      <div className="flex flex-col items-center gap-[16px] mb-[16px]">
         <div className="flex items-center gap-[4px] bg-[#2b2b2b] rounded-[12px] p-[3px]">
           <Button
             onClick={() => setActiveTab("send")}
@@ -731,7 +715,7 @@ function ActionCard() {
           {dropdownOpen && (
             <>
               <div className="fixed inset-0 z-[40]" onClick={() => setDropdownOpen(false)} />
-              <div className="absolute right-0 top-[calc(100%+6px)] z-[50] bg-[#2b2b2b] border border-white/10 rounded-[12px] p-[4px] min-w-[180px] shadow-xl">
+              <div className="absolute left-1/2 -translate-x-1/2 top-[calc(100%+6px)] z-[50] bg-[#2b2b2b] border border-white/10 rounded-[12px] p-[4px] min-w-[180px] shadow-xl">
                 {tokens.map((t) => (
                   <button
                     key={t.symbol}
@@ -778,9 +762,10 @@ function ActionCard() {
             value={sendAmount}
             onChange={(e) => setSendAmount(e.target.value)}
           />
-          <div className="flex justify-center">
+          <div className="flex justify-center pt-[12px]">
             <Button
-              className="h-[40px] w-1/2"
+              size="md"
+              className="w-full"
               onClick={handleSend}
             >
               ↗ Send {selectedToken}
@@ -802,9 +787,10 @@ function ActionCard() {
             value={tokenAddress}
             onChange={(e) => setTokenAddress(e.target.value)}
           />
-          <div className="flex justify-center">
+          <div className="flex justify-center pt-[12px]">
             <Button
-              className="h-[40px] w-1/2"
+              size="md"
+              className="w-full"
               onClick={handleSwap}
             >
               ⇆ SWAP
@@ -1011,9 +997,9 @@ function MarketOverview() {
   const { tokens, loading, refetch } = useMarketData();
 
   return (
-    <div className="backdrop-blur-[10px] bg-[#1c1c1c]/60 rounded-[16px] p-[20px]">
+    <div className="backdrop-blur-[10px] bg-[#1c1c1c]/60 rounded-[16px] p-[16px] sm:p-[20px]">
       <div className="flex items-center justify-between mb-[16px]">
-        <p className="font-['Inter',sans-serif] font-medium text-[20px] text-white">MARKET OVERVIEW</p>
+        <p className="font-['Inter',sans-serif] font-medium text-[18px] sm:text-[20px] text-white">MARKET OVERVIEW</p>
         <button
           onClick={() => {
             refetch();
@@ -1142,8 +1128,8 @@ function JoinCommunity() {
   const [joined, setJoined] = useState(false);
 
   return (
-    <div className="backdrop-blur-[10px] bg-[#2c2c2c]/60 rounded-[16px] p-[20px]">
-      <div className="flex items-center gap-[8px] mb-[4px]">
+    <div className="backdrop-blur-[10px] bg-[#2c2c2c]/60 rounded-[16px] p-[20px] flex flex-col items-center">
+      <div className="flex items-center justify-center gap-[8px] mb-[4px]">
         <p className="font-['Inter',sans-serif] font-bold text-[16px] text-white tracking-[0.16px]">Join Our Community</p>
         <div className="size-[17px] relative shrink-0">
           <img alt="" className="absolute inset-0 max-w-none object-cover pointer-events-none size-full" src={imgImage20260222164205533RemovebgPreview1} />
@@ -1151,7 +1137,7 @@ function JoinCommunity() {
       </div>
       <p className="font-['Inter',sans-serif] font-normal text-[16px] text-white text-center tracking-[0.16px] mb-[12px]">CRYPTOSAVERS CLUB</p>
       <a
-        href="https://wagmi.cktransientinn.tech/app/"
+        href="https://cryptosaversclub.com/"
         target="_blank"
         rel="noopener noreferrer"
         onClick={() => {
@@ -1182,27 +1168,27 @@ export function DashboardPage() {
   const tc = themeColors(isDark);
 
   return (
-    <div className="flex gap-[20px] flex-1">
-      {/* Center content */}
-      <div className="flex-1 flex flex-col gap-[16px] min-w-0">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-[16px] sm:gap-[20px] w-full h-auto">
+      {/* Main content – 7 columns on desktop, full width on mobile */}
+      <div className="lg:col-span-7 flex flex-col gap-[16px] min-w-0">
         <div
-          className="backdrop-blur-[10px] rounded-[16px] p-[20px] transition-colors duration-300"
+          className="backdrop-blur-[10px] rounded-[16px] p-[16px] sm:p-[20px] transition-colors duration-300 w-full overflow-hidden"
           style={{ backgroundColor: tc.cardBg, border: `1px solid ${tc.cardBorder}` }}
         >
           <StatsRow savings={portfolioData.savings} rewards={portfolioData.rewards} apy={portfolioData.apy} loading={portfolioData.loading} />
-          <div className="flex items-center gap-[16px] mt-[16px]">
-            <p className="font-['Inter',sans-serif] font-medium text-[24px]" style={{ color: tc.textPrimary }}>BALANCE</p>
+          <div className="flex items-center gap-[12px] sm:gap-[16px] mt-[16px] flex-wrap">
+            <p className="font-['Inter',sans-serif] font-medium text-[18px] sm:text-[24px]" style={{ color: tc.textPrimary }}>BALANCE</p>
             <EthBadge />
           </div>
-          <p className="font-['Inter',sans-serif] font-bold text-[36px] uppercase mt-[4px]" style={{ color: tc.textPrimary }}>
+          <p className="font-['Inter',sans-serif] font-bold text-[24px] sm:text-[36px] lg:text-[40px] uppercase mt-[4px] break-words" style={{ color: tc.textPrimary }}>
             {portfolioData.loading ? (
-              <span className="inline-block w-[180px] h-[36px] bg-white/10 rounded animate-pulse" />
+              <span className="inline-block w-[140px] sm:w-[200px] h-[28px] sm:h-[36px] bg-white/10 rounded animate-pulse" />
             ) : (
               `$ ${formatUsd(portfolioData.balance)}`
             )}
           </p>
           {!portfolioData.loading && (
-            <p className="font-['Inter',sans-serif] text-[13px] mt-[2px]" style={{ color: tc.textSecondary }}>
+            <p className="font-['Inter',sans-serif] text-[11px] sm:text-[13px] mt-[8px] sm:mt-[2px] break-words" style={{ color: tc.textSecondary }}>
               {portfolioData.ethHoldings.toFixed(4)} ETH @ ${portfolioData.ethPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               {portfolioData.cscsHoldings > 0 && ` · ${portfolioData.cscsHoldings.toLocaleString(undefined, { maximumFractionDigits: 2 })} CSCS`}
               {portfolioData.cscrHoldings > 0 && ` · ${portfolioData.cscrHoldings.toLocaleString(undefined, { maximumFractionDigits: 2 })} CSCR`}
@@ -1212,8 +1198,9 @@ export function DashboardPage() {
         </div>
         <ActionCard />
       </div>
-      {/* Right sidebar */}
-      <div className="w-[292px] shrink-0 flex flex-col gap-[16px]">
+
+      {/* Right sidebar – 5 columns on desktop, stacks below on mobile */}
+      <div className="lg:col-span-5 flex flex-col gap-[16px] min-w-0">
         <MarketOverview />
         <WalletAddress />
         <JoinCommunity />

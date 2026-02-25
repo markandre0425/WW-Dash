@@ -26,7 +26,7 @@ interface BalanceData {
   balanceUSD?: number;
 }
 
-// ============= MORALIS API =============
+// MORALIS API
 async function getMoralisTokenData(contractAddress: string): Promise<TokenData | null> {
   try {
     if (!MORALIS_API_KEY) return null;
@@ -82,7 +82,7 @@ async function getMoralisBalance(address: string): Promise<BalanceData | null> {
   }
 }
 
-// ============= ALCHEMY API =============
+// ALCHEMY API
 async function getAlchemyTokenData(contractAddress: string): Promise<TokenData | null> {
   try {
     if (!ALCHEMY_API_KEY) return null;
@@ -152,7 +152,7 @@ async function getAlchemyBalance(address: string): Promise<BalanceData | null> {
   }
 }
 
-// ============= ETHERSCAN API =============
+// ETHERSCAN API
 async function getEtherscanTokenData(contractAddress: string): Promise<TokenData | null> {
   try {
     if (!ETHERSCAN_API_KEY) return null;
@@ -202,11 +202,11 @@ async function getEtherscanBalance(address: string): Promise<BalanceData | null>
   }
 }
 
-// ============= COINGECKO API (Price Fallback) =============
+// COINGECKO API (Price Fallback)
 async function getCoinGeckoPrice(tokenId: string): Promise<{ price?: number; change24h?: number } | null> {
   try {
     const response = await fetch(
-      `https://api.coingecko.com/api/v3/simple/price?ids=${tokenId}&vs_currencies=usd&include_24hr_change=true`
+      `/api/coingecko/simple/price?ids=${tokenId}&vs_currencies=usd&include_24hr_change=true`
     );
 
     if (!response.ok) return null;
@@ -225,7 +225,7 @@ async function getCoinGeckoPrice(tokenId: string): Promise<{ price?: number; cha
   }
 }
 
-// ============= FALLBACK CHAIN LOGIC =============
+// FALLBACK CHAIN LOGIC
 export async function getTokenData(contractAddress: string): Promise<TokenData> {
   // Try providers in order
   let result = await getMoralisTokenData(contractAddress);
@@ -290,7 +290,7 @@ export async function getMultipleTokenPrices(tokenIds: string[]): Promise<Record
   try {
     const idsParam = tokenIds.join(',');
     const response = await fetch(
-      `https://api.coingecko.com/api/v3/simple/price?ids=${idsParam}&vs_currencies=usd&include_24hr_change=true`
+      `/api/coingecko/simple/price?ids=${idsParam}&vs_currencies=usd&include_24hr_change=true`
     );
 
     if (!response.ok) return {};

@@ -42,10 +42,16 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     const isGradient = ["primary", "gradient-primary", "gradient-accent"].includes(variant);
     const buttonStyle = isGradient ? { ...getGradientStyle(), ...style } : style;
 
+    // Remove any conflicting size/padding classes from custom className
+    const cleanedClassName = className
+      .split(" ")
+      .filter(cls => !cls.match(/^(px-|py-|text-|rounded-|w-|h-)/))
+      .join(" ");
+
     return (
       <button
         ref={ref}
-        className={`font-['Inter',sans-serif] font-medium cursor-pointer flex items-center justify-center ${variantStyles[variant]} ${sizeStyles[size]} ${className}`}
+        className={`font-['Inter',sans-serif] font-medium cursor-pointer flex items-center justify-center ${variantStyles[variant]} ${sizeStyles[size]} ${cleanedClassName}`}
         style={buttonStyle}
         {...props}
       >
