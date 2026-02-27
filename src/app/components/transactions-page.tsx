@@ -1,8 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
-
-const WALLET_ADDRESS = "0x98d2aa3aFa43171c421e5aFbA7091f53Ff4D808E";
-const ETHERSCAN_BASE = "https://api.etherscan.io/api";
+import { useWagmiSession } from "../hooks/useWagmiSession";
+import { getTransactionsFromBackend, type TransactionItem } from "../services/wagmi-api";
 
 /* Types */
 
@@ -21,157 +20,66 @@ interface Transaction {
   timestamp: number;
 }
 
-/* Fetch helpers */
+/* Map backend transaction to UI shape */
 
-async function fetchNormalTxs(): Promise<any[]> {
-  const url = `${ETHERSCAN_BASE}?module=account&action=txlist&address=${WALLET_ADDRESS}&startblock=0&endblock=99999999&page=1&offset=50&sort=desc`;
-  const res = await fetch(url);
-  const data = await res.json();
-  if (data.status === "1" && Array.isArray(data.result)) return data.result;
-  return [];
-}
-
-async function fetchTokenTxs(): Promise<any[]> {
-  const url = `${ETHERSCAN_BASE}?module=account&action=tokentx&address=${WALLET_ADDRESS}&startblock=0&endblock=99999999&page=1&offset=50&sort=desc`;
-  const res = await fetch(url);
-  const data = await res.json();
-  if (data.status === "1" && Array.isArray(data.result)) return data.result;
-  return [];
-}
-
-async function fetchEthPrice(): Promise<number> {
-  try {
-    const res = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd");
-    const data = await res.json();
-    return data.ethereum?.usd ?? 2800;
-  } catch {
-    return 2800;
-  }
-}
-
-/* Parse transactions */
-
-function parseNormalTx(tx: any, ethPrice: number): Transaction {
-  const isSend = tx.from.toLowerCase() === WALLET_ADDRESS.toLowerCase();
-  const isContractInteraction = tx.input && tx.input !== "0x" && !isSend;
-  const valueEth = parseFloat(tx.value) / 1e18;
-  const usdVal = valueEth * ethPrice;
-  const ts = parseInt(tx.timeStamp) * 1000;
-  const d = new Date(ts);
-  const failed = tx.isError === "1" || tx.txreceipt_status === "0";
-
+function mapBackendTx(d: TransactionItem, walletAddress: string): Transaction {
+  const ts = d.timestamp ? new Date(d.timestamp).getTime() : Date.now();
+  const date = new Date(ts);
+  const type = (d.type?.toLowerCase() || "send") as Transaction["type"];
+  const amountEth = d.amountEth != null ? parseFloat(String(d.amountEth)) : 0;
+  const amount = d.tokenAmount ?? (amountEth < 0.001 && amountEth > 0 ? amountEth.toFixed(6) : amountEth.toFixed(4));
+  const toShort = d.toAddress ? `${d.toAddress.slice(0, 6)}...${d.toAddress.slice(-4)}` : "—";
+  const fromShort = d.fromAddress ? `${d.fromAddress.slice(0, 6)}...${d.fromAddress.slice(-4)}` : "—";
+  const usd = amountEth > 0 ? `$ ${(amountEth * 2800).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "—";
   return {
-    id: `${tx.hash.slice(0, 10)}`,
-    hash: tx.hash,
-    type: isContractInteraction ? "contract" : isSend ? "send" : "receive",
-    asset: "ETH",
-    amount: valueEth < 0.001 && valueEth > 0 ? valueEth.toFixed(6) : valueEth.toFixed(4),
-    to: isSend ? `${tx.to.slice(0, 6)}...${tx.to.slice(-4)}` : `${tx.from.slice(0, 6)}...${tx.from.slice(-4)}`,
-    from: tx.from,
-    date: d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
-    time: d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false }),
-    status: failed ? "failed" : "completed",
-    usd: `$ ${usdVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-    timestamp: ts,
-  };
-}
-
-function parseTokenTx(tx: any, ethPrice: number): Transaction {
-  const isSend = tx.from.toLowerCase() === WALLET_ADDRESS.toLowerCase();
-  const decimals = parseInt(tx.tokenDecimal) || 18;
-  const value = parseFloat(tx.value) / Math.pow(10, decimals);
-  const symbol = tx.tokenSymbol || "TOKEN";
-  const ts = parseInt(tx.timeStamp) * 1000;
-  const d = new Date(ts);
-
-  // Rough USD estimate: for known tokens, try to price them; else show "—"
-  let usdStr = "—";
-  if (symbol === "USDC" || symbol === "USDT" || symbol === "DAI") {
-    usdStr = `$ ${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  } else if (symbol === "WETH") {
-    const usd = value * ethPrice;
-    usdStr = `$ ${usd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  }
-
-  return {
-    id: `${tx.hash.slice(0, 10)}`,
-    hash: tx.hash,
-    type: isSend ? "send" : "receive",
-    asset: symbol,
-    amount: value < 0.001 && value > 0 ? value.toFixed(6) : value < 1 ? value.toFixed(4) : value.toLocaleString(undefined, { maximumFractionDigits: 2 }),
-    to: isSend ? `${tx.to.slice(0, 6)}...${tx.to.slice(-4)}` : `${tx.from.slice(0, 6)}...${tx.from.slice(-4)}`,
-    from: tx.from,
-    date: d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
-    time: d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false }),
+    id: d.id ?? (d.txHash?.slice(0, 10) ?? "tx"),
+    hash: d.txHash ?? "",
+    type: type === "swap" ? "swap" : type === "receive" ? "receive" : "send",
+    asset: d.kind ?? "ETH",
+    amount: String(amount),
+    to: toShort,
+    from: d.fromAddress ?? walletAddress,
+    date: date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+    time: date.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false }),
     status: "completed",
-    usd: usdStr,
+    usd,
     timestamp: ts,
   };
 }
 
-/* Mock fallback data */
+/* Hook: fetch transactions from Wagmi backend when user is logged in */
 
-const mockTransactions: Transaction[] = [
-  { id: "0x3fa1b2...", hash: "0x3fa1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9", type: "send", asset: "ETH", amount: "2.5000", to: "0x7a3F...9c2E", from: WALLET_ADDRESS, date: "Feb 24, 2026", time: "14:23", status: "completed", usd: "$ 7,118.07", timestamp: Date.now() - 3600000 },
-  { id: "0x8bc2d3...", hash: "0x8bc2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0", type: "receive", asset: "ETH", amount: "5.0000", to: "0x1eC3...8d2F", from: "0x1eC38d2F", date: "Feb 21, 2026", time: "07:02", status: "completed", usd: "$ 14,236.15", timestamp: Date.now() - 86400000 * 3 },
-  { id: "0x4de3f4...", hash: "0x4de3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1", type: "receive", asset: "CSCS", amount: "500.00", to: "Staking Pool", from: "0xa6Ec49E06C25F63292bac1Abc1896451A0f4cFB7", date: "Feb 23, 2026", time: "08:12", status: "completed", usd: "$ 510.00", timestamp: Date.now() - 86400000 },
-  { id: "0x5ef4a5...", hash: "0x5ef4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2", type: "send", asset: "ETH", amount: "0.3500", to: "0x4b2D...7f1A", from: WALLET_ADDRESS, date: "Feb 22, 2026", time: "22:31", status: "completed", usd: "$ 996.53", timestamp: Date.now() - 86400000 * 2 },
-  { id: "0x6fa5b6...", hash: "0x6fa5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3", type: "receive", asset: "CSCR", amount: "1,200.00", to: "0x9d2F...4a1B", from: "0x9C9580A8915d2797fb9E9651c93aE1559D8A498e", date: "Feb 21, 2026", time: "10:44", status: "completed", usd: "$ 686.40", timestamp: Date.now() - 86400000 * 3 },
-];
-
-/* Hook */
-
-function useTransactions() {
+function useTransactions(address: string | null) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isLive, setIsLive] = useState(false);
 
   const fetchData = useCallback(async () => {
+    if (!address) {
+      setTransactions([]);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
-      const [normalTxs, tokenTxs, ethPrice] = await Promise.all([
-        fetchNormalTxs(),
-        fetchTokenTxs(),
-        fetchEthPrice(),
-      ]);
-
-      if (normalTxs.length === 0 && tokenTxs.length === 0) {
-        // Etherscan returned no results or rate limited — use mock
-        setTransactions(mockTransactions);
-        setIsLive(false);
-        setLoading(false);
-        return;
+      const data = await getTransactionsFromBackend(50);
+      if (data?.ok && Array.isArray(data.transactions)) {
+        const mapped = data.transactions.map((d) => mapBackendTx(d, address));
+        mapped.sort((a, b) => b.timestamp - a.timestamp);
+        setTransactions(mapped);
+      } else {
+        setTransactions([]);
       }
-
-      const parsed: Transaction[] = [
-        ...normalTxs.map((tx: any) => parseNormalTx(tx, ethPrice)),
-        ...tokenTxs.map((tx: any) => parseTokenTx(tx, ethPrice)),
-      ];
-
-      // Deduplicate by hash (a tx can appear in both normal and token lists)
-      const seen = new Set<string>();
-      const deduped = parsed.filter((tx) => {
-        const key = tx.hash + tx.asset;
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      });
-
-      deduped.sort((a, b) => b.timestamp - a.timestamp);
-      setTransactions(deduped);
-      setIsLive(true);
     } catch {
-      setTransactions(mockTransactions);
-      setIsLive(false);
+      setTransactions([]);
     }
     setLoading(false);
-  }, []);
+  }, [address]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
-  return { transactions, loading, isLive, refetch: fetchData };
+  return { transactions, loading, refetch: fetchData };
 }
 
 /* Component */
@@ -179,7 +87,8 @@ function useTransactions() {
 type FilterType = "all" | "send" | "receive" | "swap" | "contract";
 
 export function TransactionsPage() {
-  const { transactions, loading, isLive, refetch } = useTransactions();
+  const { address, loading: sessionLoading } = useWagmiSession();
+  const { transactions, loading, refetch } = useTransactions(address);
   const [filter, setFilter] = useState<FilterType>("all");
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -254,7 +163,7 @@ export function TransactionsPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `transactions_${WALLET_ADDRESS.slice(0, 8)}.csv`;
+    a.download = `transactions_${address?.slice(0, 8) ?? "wallet"}.csv`;
     a.click();
     URL.revokeObjectURL(url);
     toast.success("CSV exported!");
@@ -267,18 +176,6 @@ export function TransactionsPage() {
         <div className="flex items-center justify-between mb-[20px]">
           <div className="flex items-center gap-[12px]">
             <h2 className="font-['Inter',sans-serif] font-bold text-[24px] text-white">Transactions</h2>
-            {isLive && (
-              <div className="flex items-center gap-[6px] bg-[#00ffa3]/10 rounded-[8px] px-[8px] py-[3px]">
-                <div className="w-[6px] h-[6px] rounded-full bg-[#00ffa3] animate-pulse" />
-                <span className="font-['Inter',sans-serif] text-[11px] text-[#00ffa3]">Live</span>
-              </div>
-            )}
-            {!isLive && !loading && (
-              <div className="flex items-center gap-[6px] bg-[#ffaa00]/10 rounded-[8px] px-[8px] py-[3px]">
-                <div className="w-[6px] h-[6px] rounded-full bg-[#ffaa00]" />
-                <span className="font-['Inter',sans-serif] text-[11px] text-[#ffaa00]">Mock data</span>
-              </div>
-            )}
           </div>
           <div className="flex items-center gap-[8px]">
             <button
@@ -300,14 +197,22 @@ export function TransactionsPage() {
         {/* Wallet badge */}
         <div className="flex items-center gap-[8px] mb-[16px]">
           <span className="font-['Inter',sans-serif] text-[12px] text-[#86909c]">Wallet:</span>
-          <a
-            href={`https://etherscan.io/address/${WALLET_ADDRESS}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-['Inter',sans-serif] text-[12px] text-[#0FC6C2] hover:underline"
-          >
-            {WALLET_ADDRESS.slice(0, 6)}...{WALLET_ADDRESS.slice(-4)}
-          </a>
+          {sessionLoading ? (
+            <span className="font-['Inter',sans-serif] text-[12px] text-[#86909c]">Loading...</span>
+          ) : !address ? (
+            <a href="/app/?connect=1" target="_top" className="font-['Inter',sans-serif] text-[12px] text-[#0FC6C2] hover:underline">
+              Connect Account
+            </a>
+          ) : (
+            <a
+              href={`https://etherscan.io/address/${address}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-['Inter',sans-serif] text-[12px] text-[#0FC6C2] hover:underline"
+            >
+              {address.slice(0, 6)}...{address.slice(-4)}
+            </a>
+          )}
           <span className="font-['Inter',sans-serif] text-[11px] text-[#86909c]">· Ethereum Mainnet</span>
         </div>
 
@@ -377,7 +282,7 @@ export function TransactionsPage() {
         {loading ? (
           <div className="flex items-center justify-center py-[40px] gap-[8px]">
             <div className="w-[16px] h-[16px] border-2 border-[#0FC6C2] border-t-transparent rounded-full animate-spin" />
-            <p className="font-['Inter',sans-serif] text-[14px] text-[#86909c]">Fetching transactions from Etherscan...</p>
+            <p className="font-['Inter',sans-serif] text-[14px] text-[#86909c]">Loading transactions...</p>
           </div>
         ) : filtered.length === 0 ? (
           <div className="flex items-center justify-center py-[40px]">
@@ -420,12 +325,9 @@ export function TransactionsPage() {
         {/* Footer */}
         {!loading && (
           <div className="flex items-center justify-between px-[24px] py-[10px] border-t border-white/5">
-            <div className="flex items-center gap-[6px]">
-              <div className={`w-[5px] h-[5px] rounded-full ${isLive ? "bg-[#00ffa3] animate-pulse" : "bg-[#ffaa00]"}`} />
-              <p className="font-['Inter',sans-serif] text-[10px] text-[#86909c]">
-                {isLive ? "Live via Etherscan · Click any row to view on Etherscan" : "Using cached mock data · Etherscan may be rate-limited"}
-              </p>
-            </div>
+            <p className="font-['Inter',sans-serif] text-[10px] text-[#86909c]">
+              Click any row to view on Etherscan
+            </p>
             <p className="font-['Inter',sans-serif] text-[11px] text-[#86909c]">
               {filtered.length} of {transactions.length} transactions
             </p>

@@ -25,7 +25,10 @@ const figmaAssetPlugin = {
   },
 }
 
-export default defineConfig({
+// When embedded in landing: BASE_URL=/dashboard/ (web) or BASE_URL=./ (Electron).
+// In dev (serve): use /dashboard/ so the root dev server can proxy /dashboard -> 5174.
+export default defineConfig(({ command }) => ({
+  base: process.env.BASE_URL ?? (command === 'serve' ? '/dashboard/' : '/'),
   plugins: [
     figmaAssetPlugin,
     react(),
@@ -38,6 +41,7 @@ export default defineConfig({
   },
   assetsInclude: ['**/*.svg', '**/*.csv'],
   server: {
+    port: 5174,
     proxy: {
       '/api/coingecko': {
         target: 'https://api.coingecko.com/api/v3',
@@ -51,4 +55,4 @@ export default defineConfig({
       external: [],
     },
   },
-})
+}))

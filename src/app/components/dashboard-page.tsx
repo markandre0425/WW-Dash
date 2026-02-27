@@ -9,7 +9,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import imgImage20260222164205533RemovebgPreview1 from "figma:asset/eba4c72eaedd4c8473dc3ca4e3305e8579897e91.png";
+import logoIcon from "@/assets/newicon.png";
 import {
   EthBadge,
   EthLogo,
@@ -23,6 +23,8 @@ import {
 import { useTheme, themeColors } from "./theme-context";
 import { Button, PrimaryButton, SecondaryButton } from "./button-styles";
 import { BlockchainAPI } from "../services/blockchain-api";
+import { useWagmiSession } from "../hooks/useWagmiSession";
+import { getBalanceFromBackend, getAssetsFromBackend } from "../services/wagmi-api";
 
 /* CoinGecko API hook */
 
@@ -226,7 +228,6 @@ function CustomTooltip({ active, payload, label }: any) {
 
 /* Stats row */
 
-const WALLET_ADDRESS = "0x98d2aa3aFa43171c421e5aFbA7091f53Ff4D808E";
 const ETH_RPC = "https://rpc.ankr.com/eth";
 const CSCS_CONTRACT = "0xa6Ec49E06C25F63292bac1Abc1896451A0f4cFB7";
 const CSCR_CONTRACT = "0x9C9580A8915d2797fb9E9651c93aE1559D8A498e";
@@ -288,7 +289,7 @@ async function fetchTokenBalance(tokenContract: string, walletAddress: string): 
   return rawBalance / Math.pow(10, decimals);
 }
 
-function usePortfolioData() {
+function usePortfolioData(walletAddress: string | null) {
   const [data, setData] = useState({
     balance: 0,
     savings: 0,
@@ -302,12 +303,13 @@ function usePortfolioData() {
   });
 
   const fetchPortfolio = useCallback(async () => {
+    if (!walletAddress) return;
     try {
       // Fetch on-chain balances and market data in parallel
       const [ethBalance, cscsBalance, cscrBalance, coinRes] = await Promise.all([
-        fetchEthBalance(WALLET_ADDRESS).catch(() => 0),
-        fetchTokenBalance(CSCS_CONTRACT, WALLET_ADDRESS).catch(() => 0),
-        fetchTokenBalance(CSCR_CONTRACT, WALLET_ADDRESS).catch(() => 0),
+        fetchEthBalance(walletAddress).catch(() => 0),
+        fetchTokenBalance(CSCS_CONTRACT, walletAddress).catch(() => 0),
+        fetchTokenBalance(CSCR_CONTRACT, walletAddress).catch(() => 0),
         fetch(
           "https://api.coingecko.com/api/v3/coins/ethereum?localization=false&tickers=false&market_data=true&community_data=false&developer_data=false"
         ).catch(() => null),
@@ -388,6 +390,137 @@ function usePortfolioData() {
     const interval = setInterval(fetchPortfolio, 60000);
     return () => clearInterval(interval);
   }, [fetchPortfolio]);
+
+  return data;
+}
+
+/** Portfolio data from Wagmi backend (/api/balance + /api/assets). Use when user is logged in via /app/. */
+function usePortfolioFromBackend(address: string | null) {
+  const [data, setData] = useState({
+    balance: 0,
+    savings: 0,
+    rewards: 0,
+    apy: 0,
+    ethPrice: 0,
+    ethHoldings: 0,
+    cscsHoldings: 0,
+    cscrHoldings: 0,
+    loading: true,
+  });
+
+  useEffect(() => {
+    if (!address) {
+      setData({
+        balance: 0,
+        savings: 0,
+        rewards: 0,
+        apy: 0,
+        ethPrice: 0,
+        ethHoldings: 0,
+        cscsHoldings: 0,
+        cscrHoldings: 0,
+        loading: false,
+      });
+      return;
+    }
+
+    let cancelled = false;
+
+    async function fetchFromBackend() {
+      try {
+        const [balanceRes, assetsRes] = await Promise.all([
+          getBalanceFromBackend(1),
+          getAssetsFromBackend(address!, 1),
+        ]);
+
+        if (cancelled) return;
+
+        // Parse numeric balance safely – never propagate NaN
+        let balanceEth = 0;
+        if (balanceRes?.ok && balanceRes.balance != null) {
+          const raw = String(balanceRes.balance);
+          const parsed = parseFloat(raw);
+          balanceEth = Number.isFinite(parsed) ? parsed : 0;
+        }
+        const assets = assetsRes?.ok && Array.isArray(assetsRes.assets) ? assetsRes.assets : [];
+
+        const cscsLower = CSCS_CONTRACT.toLowerCase();
+        const cscrLower = CSCR_CONTRACT.toLowerCase();
+        let cscsHoldings = 0;
+        let cscrHoldings = 0;
+        const contractAddresses = assets.map((a) => a.contractAddress).filter(Boolean) as string[];
+
+        for (const a of assets) {
+          const bal = a.balance != null ? parseFloat(a.balance) : 0;
+          if (a.contractAddress?.toLowerCase() === cscsLower) cscsHoldings = bal;
+          if (a.contractAddress?.toLowerCase() === cscrLower) cscrHoldings = bal;
+        }
+
+        let ethPrice = 2847.23;
+        try {
+          const priceRes = await BlockchainAPI.getTokenPrice("ethereum");
+          if (priceRes?.price != null) ethPrice = priceRes.price;
+        } catch {
+          // keep default
+        }
+
+        let totalUSD = balanceEth * ethPrice;
+        if (!Number.isFinite(totalUSD)) totalUSD = 0;
+        if (contractAddresses.length > 0) {
+          try {
+            const prices = await BlockchainAPI.getMultipleTokenPrices(contractAddresses);
+            for (const a of assets) {
+              const balRaw = a.balance != null ? String(a.balance) : "0";
+              const balParsed = parseFloat(balRaw);
+              const bal = Number.isFinite(balParsed) ? balParsed : 0;
+              const addr = a.contractAddress?.toLowerCase();
+              const price = addr ? (prices as Record<string, { price?: number }>)[addr]?.price : undefined;
+              if (price != null) {
+                const inc = bal * price;
+                if (Number.isFinite(inc)) {
+                  totalUSD += inc;
+                }
+              }
+            }
+          } catch {
+            // ignore token price errors
+          }
+        }
+
+        if (cancelled) return;
+        setData({
+          balance: totalUSD,
+          savings: 0,
+          rewards: 0,
+          apy: 0,
+          ethPrice,
+          ethHoldings: balanceEth,
+          cscsHoldings,
+          cscrHoldings,
+          loading: false,
+        });
+      } catch {
+        if (!cancelled) {
+          setData({
+            balance: 0,
+            savings: 0,
+            rewards: 0,
+            apy: 0,
+            ethPrice: 0,
+            ethHoldings: 0,
+            cscsHoldings: 0,
+            cscrHoldings: 0,
+            loading: false,
+          });
+        }
+      }
+    }
+
+    fetchFromBackend();
+    return () => {
+      cancelled = true;
+    };
+  }, [address]);
 
   return data;
 }
@@ -618,7 +751,7 @@ function PriceChart() {
 
 /* Send / Swap */
 
-function ActionCard() {
+function ActionCard({ portfolio }: { portfolio: ReturnType<typeof usePortfolioFromBackend> }) {
   const [activeTab, setActiveTab] = useState<"send" | "swap">("send");
   const [recipient, setRecipient] = useState("");
   const [sendAmount, setSendAmount] = useState("");
@@ -626,7 +759,6 @@ function ActionCard() {
   const [tokenAddress, setTokenAddress] = useState("");
   const [selectedToken, setSelectedToken] = useState<"ETH" | "CSCS" | "CSCR">("ETH");
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const portfolio = usePortfolioData();
 
   const tokens = [
     { symbol: "ETH" as const, balance: portfolio.ethHoldings, color: "#0FC6C2", icon: <EthLogo size={12} /> },
@@ -664,15 +796,6 @@ function ActionCard() {
     setTokenAddress("");
   };
 
-  const tokenBgColor = (symbol: string) => {
-    switch (symbol) {
-      case "ETH": return "linear-gradient(144.638deg, rgb(255, 255, 255) 6.1321%, rgba(217, 217, 217, 0.71) 99.078%)";
-      case "CSCS": return "linear-gradient(144.638deg, #5096af 6.1321%, #00ffb9 99.078%)";
-      case "CSCR": return "linear-gradient(144.638deg, #fffdfd 6.1321%, #ffa0a5 99.078%)";
-      default: return "";
-    }
-  };
-
   return (
     <div className="backdrop-blur-[10px] bg-[#1c1c1c]/60 rounded-[16px] p-[16px] sm:p-[20px]">
       {/* Tab toggle */}
@@ -704,7 +827,7 @@ function ActionCard() {
           >
             <div
               className="flex items-center justify-center p-[5px] rounded-full shrink-0 size-[22px]"
-              style={{ backgroundImage: tokenBgColor(selectedToken) }}
+              style={{ backgroundImage: tokenBadgeBg(selectedToken) }}
             >
               {activeToken.icon}
             </div>
@@ -726,7 +849,7 @@ function ActionCard() {
                   >
                     <div
                       className="flex items-center justify-center rounded-full shrink-0 size-[24px]"
-                      style={{ backgroundImage: tokenBgColor(t.symbol) }}
+                      style={{ backgroundImage: tokenBadgeBg(t.symbol) }}
                     >
                       {t.icon}
                     </div>
@@ -1063,14 +1186,36 @@ function MarketOverview() {
   );
 }
 
+/* Token badge gradient helper (shared with ActionCard) */
+function tokenBadgeBg(symbol: string) {
+  switch (symbol) {
+    case "ETH": return "linear-gradient(144.638deg, rgb(255, 255, 255) 6.1321%, rgba(217, 217, 217, 0.71) 99.078%)";
+    case "CSCS": return "linear-gradient(144.638deg, #5096af 6.1321%, #00ffb9 99.078%)";
+    case "CSCR": return "linear-gradient(144.638deg, #fffdfd 6.1321%, #ffa0a5 99.078%)";
+    default: return "";
+  }
+}
+
 /* Wallet Address */
 
 function WalletAddress() {
   const [copied, setCopied] = useState(false);
-  const truncated = `${WALLET_ADDRESS.slice(0, 6)}...${WALLET_ADDRESS.slice(-4)}`;
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [selectedToken, setSelectedToken] = useState<"ETH" | "CSCS" | "CSCR">("ETH");
+  const { address, loading } = useWagmiSession();
+  const portfolio = usePortfolioFromBackend(address);
+  const truncated = address ? `${address.slice(0, 6)}...${address.slice(-4)}` : "—";
+
+  const walletTokens = [
+    { symbol: "ETH" as const, balance: portfolio.ethHoldings, color: "#0FC6C2", icon: <EthLogo size={12} /> },
+    { symbol: "CSCS" as const, balance: portfolio.cscsHoldings, color: "#00ffb9", icon: <span className="font-['Inter',sans-serif] font-bold text-[8px] text-white">CS</span> },
+    { symbol: "CSCR" as const, balance: portfolio.cscrHoldings, color: "#fb035c", icon: <span className="font-['Inter',sans-serif] font-bold text-[8px] text-[#333]">CR</span> },
+  ];
+  const activeWalletToken = walletTokens.find((t) => t.symbol === selectedToken)!;
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(WALLET_ADDRESS);
+    if (!address) return;
+    navigator.clipboard.writeText(address);
     setCopied(true);
     toast.success("Address copied to clipboard!");
     setTimeout(() => setCopied(false), 2000);
@@ -1080,44 +1225,103 @@ function WalletAddress() {
     <div className="backdrop-blur-[10px] bg-[#2c2c2c]/60 rounded-[16px] p-[20px]">
       <div className="flex items-center justify-between mb-[12px]">
         <p className="font-['Inter',sans-serif] font-bold text-[16px] text-white tracking-[0.16px]">WALLET ADDRESS</p>
-        <div className="flex items-center gap-[4px] bg-[rgba(0,0,0,0.4)] rounded-[25px] pl-[5px] pr-[10px] py-[5px]">
-          <div className="flex items-start p-[5px] rounded-[25px] shrink-0" style={{ backgroundImage: "linear-gradient(144.638deg, rgb(255, 255, 255) 6.1321%, rgba(217, 217, 217, 0.71) 99.078%)" }}>
-            <EthLogo size={12} />
-          </div>
-          <p className="font-['Inter',sans-serif] font-medium text-[12px] text-white">ETH</p>
-          <ChevronDownIcon />
-        </div>
-      </div>
-      <button
-        onClick={handleCopy}
-        className="bg-[#2b2b2b] rounded-[12px] h-[32px] flex items-center justify-center px-[10px] w-full cursor-pointer hover:bg-[#363636] transition-colors group"
-        title={WALLET_ADDRESS}
-      >
-        <p className="font-['Poppins',sans-serif] font-semibold text-[14px] text-white tracking-[0.14px] truncate">{truncated}</p>
-        <span className="ml-[8px] text-white/50 shrink-0">
-          {copied ? (
-            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-              <path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          ) : (
-            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-              <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-              <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
-            </svg>
+        {/* TODO: Crypto dropdown wallet address feature - temporarily disabled */}
+        {/* <div className="relative">
+          <button
+            type="button"
+            onClick={() => setDropdownOpen(!dropdownOpen)}
+            className="flex items-center gap-[4px] bg-[rgba(0,0,0,0.4)] rounded-[25px] pl-[5px] pr-[10px] py-[5px] cursor-pointer hover:bg-[rgba(0,0,0,0.6)] transition-colors"
+          >
+            <div
+              className="flex items-center justify-center p-[5px] rounded-full shrink-0 size-[22px]"
+              style={{ backgroundImage: tokenBadgeBg(selectedToken) }}
+            >
+              {activeWalletToken.icon}
+            </div>
+            <p className="font-['Inter',sans-serif] font-medium text-[12px] text-white">{selectedToken}</p>
+            <ChevronDownIcon />
+          </button>
+          {dropdownOpen && (
+            <>
+              <div className="fixed inset-0 z-[40]" onClick={() => setDropdownOpen(false)} />
+              <div className="absolute left-1/2 -translate-x-1/2 top-[calc(100%+6px)] z-[50] bg-[#2b2b2b] border border-white/10 rounded-[12px] p-[8px] min-w-[260px] shadow-xl">
+                {walletTokens.map((t) => (
+                  <button
+                    key={t.symbol}
+                    type="button"
+                    onClick={() => { setSelectedToken(t.symbol); setDropdownOpen(false); }}
+                    className={`flex items-center gap-[12px] w-full px-[12px] py-[10px] rounded-[8px] cursor-pointer transition-colors ${
+                      selectedToken === t.symbol ? "bg-white/10" : "hover:bg-white/5"
+                    }`}
+                  >
+                    <div
+                      className="flex items-center justify-center rounded-full shrink-0 size-[24px]"
+                      style={{ backgroundImage: tokenBadgeBg(t.symbol) }}
+                    >
+                      {t.icon}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-['Inter',sans-serif] font-medium text-[13px] text-white truncate">{t.symbol}</p>
+                      <p className="font-['Inter',sans-serif] text-[11px] text-[#86909c] truncate">
+                        {portfolio.loading ? "..." : t.balance.toLocaleString(undefined, { maximumFractionDigits: 4 })}
+                      </p>
+                    </div>
+                    {selectedToken === t.symbol && (
+                      <div className="shrink-0 w-[6px] h-[6px] rounded-full" style={{ backgroundColor: t.color }} />
+                    )}
+                  </button>
+                ))}
+              </div>
+            </>
           )}
-        </span>
-      </button>
-      <a
-        href={`https://etherscan.io/address/${WALLET_ADDRESS}`}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="flex items-center justify-center gap-[6px] mt-[8px] text-[#86909c] hover:text-[#0FC6C2] transition-colors"
-      >
-        <p className="font-['Inter',sans-serif] text-[11px]">View on Etherscan</p>
-        <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-          <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      </a>
+        </div> */}
+      </div>
+      {loading ? (
+        <div className="bg-[#2b2b2b] rounded-[12px] h-[32px] flex items-center justify-center">
+          <span className="inline-block w-[120px] h-[14px] bg-white/10 rounded animate-pulse" />
+        </div>
+      ) : !address ? (
+        <a
+          href="/app/?connect=1"
+          target="_top"
+          className="bg-[#0FC6C2]/20 rounded-[12px] h-[32px] flex items-center justify-center px-[10px] w-full cursor-pointer hover:bg-[#0FC6C2]/30 transition-colors"
+        >
+          <p className="font-['Poppins',sans-serif] font-semibold text-[14px] text-[#0FC6C2]">Connect Account</p>
+        </a>
+      ) : (
+        <>
+          <button
+            onClick={handleCopy}
+            className="bg-[#2b2b2b] rounded-[12px] h-[32px] flex items-center justify-center px-[10px] w-full cursor-pointer hover:bg-[#363636] transition-colors group"
+            title={address}
+          >
+            <p className="font-['Poppins',sans-serif] font-semibold text-[14px] text-white tracking-[0.14px] truncate">{truncated}</p>
+            <span className="ml-[8px] text-white/50 shrink-0">
+              {copied ? (
+                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              ) : (
+                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                  <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
+                </svg>
+              )}
+            </span>
+          </button>
+          <a
+            href={`https://etherscan.io/address/${address}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-[6px] mt-[8px] text-[#86909c] hover:text-[#0FC6C2] transition-colors"
+          >
+            <p className="font-['Inter',sans-serif] text-[11px]">View on Etherscan</p>
+            <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+              <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </a>
+        </>
+      )}
     </div>
   );
 }
@@ -1132,7 +1336,7 @@ function JoinCommunity() {
       <div className="flex items-center justify-center gap-[8px] mb-[4px]">
         <p className="font-['Inter',sans-serif] font-bold text-[16px] text-white tracking-[0.16px]">Join Our Community</p>
         <div className="size-[17px] relative shrink-0">
-          <img alt="" className="absolute inset-0 max-w-none object-cover pointer-events-none size-full" src={imgImage20260222164205533RemovebgPreview1} />
+          <img alt="Wealth Wards" className="absolute inset-0 max-w-none object-contain pointer-events-none size-full" src={logoIcon} />
         </div>
       </div>
       <p className="font-['Inter',sans-serif] font-normal text-[16px] text-white text-center tracking-[0.16px] mb-[12px]">CRYPTOSAVERS CLUB</p>
@@ -1163,7 +1367,8 @@ function JoinCommunity() {
 /* Dashboard Page */
 
 export function DashboardPage() {
-  const portfolioData = usePortfolioData();
+  const { address } = useWagmiSession();
+  const portfolioData = usePortfolioFromBackend(address);
   const { isDark } = useTheme();
   const tc = themeColors(isDark);
 
@@ -1178,16 +1383,18 @@ export function DashboardPage() {
           <StatsRow savings={portfolioData.savings} rewards={portfolioData.rewards} apy={portfolioData.apy} loading={portfolioData.loading} />
           <div className="flex items-center gap-[12px] sm:gap-[16px] mt-[16px] flex-wrap">
             <p className="font-['Inter',sans-serif] font-medium text-[18px] sm:text-[24px]" style={{ color: tc.textPrimary }}>BALANCE</p>
-            <EthBadge />
+            {/* <EthBadge /> */}
           </div>
           <p className="font-['Inter',sans-serif] font-bold text-[24px] sm:text-[36px] lg:text-[40px] uppercase mt-[4px] break-words" style={{ color: tc.textPrimary }}>
             {portfolioData.loading ? (
               <span className="inline-block w-[140px] sm:w-[200px] h-[28px] sm:h-[36px] bg-white/10 rounded animate-pulse" />
+            ) : !address ? (
+              "Connect to see balance"
             ) : (
               `$ ${formatUsd(portfolioData.balance)}`
             )}
           </p>
-          {!portfolioData.loading && (
+          {!portfolioData.loading && address && (
             <p className="font-['Inter',sans-serif] text-[11px] sm:text-[13px] mt-[8px] sm:mt-[2px] break-words" style={{ color: tc.textSecondary }}>
               {portfolioData.ethHoldings.toFixed(4)} ETH @ ${portfolioData.ethPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               {portfolioData.cscsHoldings > 0 && ` · ${portfolioData.cscsHoldings.toLocaleString(undefined, { maximumFractionDigits: 2 })} CSCS`}
@@ -1196,7 +1403,7 @@ export function DashboardPage() {
           )}
           <PriceChart />
         </div>
-        <ActionCard />
+        <ActionCard portfolio={portfolioData} />
       </div>
 
       {/* Right sidebar – 5 columns on desktop, stacks below on mobile */}

@@ -1,7 +1,6 @@
 import svgPaths from "./svg-fziies2cf0";
 import imgEllipse1 from "figma:asset/dcce5012742dbc156a98520c179d4f83b729b23b.png";
-import imgCe376E5FD79248AaA9C0B819Bff1258ARemovebgPreview1 from "figma:asset/1d13d2f000eaae8aa0d9d99618aa99469d80c1fb.png";
-import imgImage20260222164205533RemovebgPreview1 from "figma:asset/eba4c72eaedd4c8473dc3ca4e3305e8579897e91.png";
+import logoIcon from "@/assets/newicon.png";
 
 function Group4() {
   return (
@@ -1116,14 +1115,14 @@ export default function Dashboard() {
       <div className="absolute bg-[rgba(255,255,255,0)] content-stretch flex flex-col gap-[19px] h-[336px] items-start left-[337px] p-[20px] rounded-[12px] top-[326px] w-[716px]" data-name="面积图">
         <Component />
       </div>
-      <div className="absolute left-[20px] size-[85px] top-[30px]" data-name="ce376e5f-d792-48aa-a9c0-b819bff1258a-removebg-preview 1">
-        <img alt="" className="absolute inset-0 max-w-none object-cover pointer-events-none size-full" src={imgCe376E5FD79248AaA9C0B819Bff1258ARemovebgPreview1} />
+      <div className="absolute left-[20px] size-[85px] top-[30px]" data-name="logo">
+        <img alt="Wealth Wards" className="absolute inset-0 max-w-none object-contain pointer-events-none size-full" src={logoIcon} />
       </div>
       <CryptoDefault2 />
       <p className="absolute font-['Inter:Bold',sans-serif] font-bold h-[45px] leading-[normal] left-[362px] not-italic text-[36px] text-white top-[282px] uppercase w-[161px] whitespace-pre-wrap">$ 78,342</p>
       <p className="absolute capitalize font-['Inter:Medium',sans-serif] font-medium leading-[normal] left-[365px] not-italic text-[24px] text-white top-[248px]">BALANCE</p>
-      <div className="absolute left-[1341px] size-[17px] top-[727px]" data-name="image_2026-02-22_164205533-removebg-preview 1">
-        <img alt="" className="absolute inset-0 max-w-none object-cover pointer-events-none size-full" src={imgImage20260222164205533RemovebgPreview1} />
+      <div className="absolute left-[1341px] size-[17px] top-[727px]" data-name="logo">
+        <img alt="Wealth Wards" className="absolute inset-0 max-w-none object-contain pointer-events-none size-full" src={logoIcon} />
       </div>
     </div>
   );

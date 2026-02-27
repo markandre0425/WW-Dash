@@ -3,8 +3,17 @@
  * Primary: Moralis
  * Secondary: Alchemy
  * Tertiary: Etherscan
- * Fallback: CoinGecko (for price data only)
+ * Price: Backend (Moralis server-side) first, CoinGecko fallback
  */
+
+// Backend API base (Wagmi server). In dev set VITE_API_URL=http://localhost:3001 so dashboard can reach the API.
+const API_BASE = (import.meta.env.VITE_API_URL as string) || '';
+
+// Known token id -> mainnet contract address (for backend /api/token-price which uses contract address)
+const TOKEN_ID_TO_ADDRESS: Record<string, string> = {
+  ethereum: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2', // WETH
+  bitcoin: '0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599', // WBTC
+};
 
 const MORALIS_API_KEY = import.meta.env.VITE_MORALIS_API_KEY;
 const ALCHEMY_API_KEY = import.meta.env.VITE_ALCHEMY_API_KEY;
@@ -202,15 +211,31 @@ async function getEtherscanBalance(address: string): Promise<BalanceData | null>
   }
 }
 
-// COINGECKO API (Price Fallback)
+// Backend (Moralis server-side) — primary for price. Keys stay on server.
+async function getBackendTokenPrice(contractAddress: string, chainId = 1): Promise<{ price?: number; change24h?: number } | null> {
+  if (!API_BASE) return null;
+  try {
+    const url = `${API_BASE}/api/token-price?address=${encodeURIComponent(contractAddress)}&chainId=${chainId}`;
+    const response = await fetch(url, { credentials: 'include' });
+    if (!response.ok) return null;
+    const data = await response.json();
+    if (data?.ok && (data.price != null || data.change24h != null)) {
+      return { price: data.price ?? undefined, change24h: data.change24h ?? undefined };
+    }
+    return null;
+  } catch (error) {
+    console.warn('[API] Backend price fetch failed:', error);
+    return null;
+  }
+}
+
+// CoinGecko (fallback when backend price unavailable)
 async function getCoinGeckoPrice(tokenId: string): Promise<{ price?: number; change24h?: number } | null> {
   try {
     const response = await fetch(
       `/api/coingecko/simple/price?ids=${tokenId}&vs_currencies=usd&include_24hr_change=true`
     );
-
     if (!response.ok) return null;
-
     const data = await response.json();
     if (data[tokenId]) {
       return {
@@ -220,7 +245,7 @@ async function getCoinGeckoPrice(tokenId: string): Promise<{ price?: number; cha
     }
     return null;
   } catch (error) {
-    console.error('[CoinGecko] Price fetch failed:', error);
+    console.warn('[CoinGecko] Price fetch failed:', error);
     return null;
   }
 }
@@ -275,29 +300,51 @@ export async function getBalance(address: string): Promise<BalanceData> {
 }
 
 export async function getTokenPrice(tokenId: string = 'ethereum'): Promise<{ price?: number; change24h?: number }> {
-  const result = await getCoinGeckoPrice(tokenId);
-  if (result) {
-    console.log('[API] CoinGecko price data retrieved');
-    return result;
+  const address = TOKEN_ID_TO_ADDRESS[tokenId.toLowerCase()] || (tokenId.startsWith('0x') ? tokenId : null);
+  if (address && API_BASE) {
+    const result = await getBackendTokenPrice(address, 1);
+    if (result) {
+      return result;
+    }
   }
-
-  console.warn('[API] CoinGecko price fetch failed');
+  const result = await getCoinGeckoPrice(tokenId);
+  if (result) return result;
   return {};
 }
 
-// Multi-token price fetch
+// Multi-token price fetch: backend (Moralis) first, then CoinGecko
 export async function getMultipleTokenPrices(tokenIds: string[]): Promise<Record<string, { price?: number; change24h?: number }>> {
+  if (API_BASE && tokenIds.length > 0) {
+    const addresses = tokenIds.map((id) => TOKEN_ID_TO_ADDRESS[id.toLowerCase()] || (id.startsWith('0x') ? id : null)).filter(Boolean) as string[];
+    if (addresses.length > 0) {
+      try {
+        const url = `${API_BASE}/api/token-prices?addresses=${addresses.join(',')}&chainId=1`;
+        const response = await fetch(url, { credentials: 'include' });
+        if (response.ok) {
+          const data = await response.json();
+          if (data?.ok && data.prices) {
+            const byAddress = data.prices as Record<string, { price?: number; change24h?: number }>;
+            const result: Record<string, { price?: number; change24h?: number }> = {};
+            tokenIds.forEach((id) => {
+              const addr = TOKEN_ID_TO_ADDRESS[id.toLowerCase()] || (id.startsWith('0x') ? id.toLowerCase() : null);
+              if (addr && byAddress[addr]) result[id] = byAddress[addr];
+            });
+            if (Object.keys(result).length > 0) return result;
+          }
+        }
+      } catch (e) {
+        console.warn('[API] Backend token-prices failed:', e);
+      }
+    }
+  }
   try {
     const idsParam = tokenIds.join(',');
     const response = await fetch(
       `/api/coingecko/simple/price?ids=${idsParam}&vs_currencies=usd&include_24hr_change=true`
     );
-
     if (!response.ok) return {};
-
     const data = await response.json();
     const result: Record<string, { price?: number; change24h?: number }> = {};
-
     for (const tokenId of tokenIds) {
       if (data[tokenId]) {
         result[tokenId] = {
@@ -306,10 +353,9 @@ export async function getMultipleTokenPrices(tokenIds: string[]): Promise<Record
         };
       }
     }
-
     return result;
   } catch (error) {
-    console.error('[CoinGecko] Multiple tokens price fetch failed:', error);
+    console.warn('[CoinGecko] Multiple tokens price fetch failed:', error);
     return {};
   }
 }

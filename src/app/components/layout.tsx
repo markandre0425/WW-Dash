@@ -2,7 +2,6 @@ import { Outlet, useNavigate, useLocation } from "react-router";
 import { toast } from "sonner";
 import { useState } from "react";
 import imgEllipse1 from "figma:asset/dcce5012742dbc156a98520c179d4f83b729b23b.png";
-import imgCe376E5FD79248AaA9C0B819Bff1258ARemovebgPreview1 from "figma:asset/1d13d2f000eaae8aa0d9d99618aa99469d80c1fb.png";
 import {
   DashboardIcon,
   SettingsIcon,
@@ -13,8 +12,10 @@ import {
   CloseIcon,
 } from "./shared-icons";
 import { useTheme, themeColors } from "./theme-context";
+import logoIcon from "@/assets/newicon.png";
 import { Button } from "./button-styles";
 import { useIsMobile } from "./ui/use-mobile";
+import { logoutFromBackend } from "../services/wagmi-api";
 
 /* Background blobs */
 
@@ -131,8 +132,8 @@ function Sidebar() {
         className="flex items-center gap-[8px] px-[20px] mb-[40px] cursor-pointer"
         onClick={() => navigate("/")}
       >
-        <div className="size-[85px] relative shrink-0">
-          <img alt="" className="absolute inset-0 max-w-none object-cover pointer-events-none size-full" src={imgCe376E5FD79248AaA9C0B819Bff1258ARemovebgPreview1} />
+        <div className="size-[85px] relative shrink-0 overflow-hidden rounded-lg">
+          <img alt="Wealth Wards" src={logoIcon} width={85} height={85} className="absolute inset-0 size-full object-contain pointer-events-none" />
         </div>
         <div className="flex flex-col">
           <p className="font-['Montserrat',sans-serif] font-semibold text-[24px]" style={{ color: tc.textPrimary }}>WEALTH WARDS</p>
@@ -177,19 +178,24 @@ function Sidebar() {
             </button>
           );
         })}
-      </div>
 
-      {/* Log Out */}
-      <button
-        className="flex gap-[19px] items-center px-[50px] cursor-pointer hover:opacity-80 transition-opacity"
-        onClick={() => {
-          toast.success("Logged out successfully");
-          navigate("/");
-        }}
-      >
-        <LogoutIcon />
-        <p className="font-['Inter',sans-serif] font-medium text-[18px]" style={{ color: tc.textMuted }}>Log Out</p>
-      </button>
+        {/* Log Out */}
+        <button
+          className="flex gap-[19px] items-center px-[25px] py-[16px] rounded-[16px] cursor-pointer hover:opacity-80 transition-opacity mt-auto"
+          onClick={async () => {
+            try {
+              await logoutFromBackend();
+              toast.success("Logged out successfully");
+              navigate("/");
+            } catch (error) {
+              toast.error("Failed to logout");
+            }
+          }}
+        >
+          <LogoutIcon />
+          <p className="font-['Inter',sans-serif] font-medium text-[18px]" style={{ color: tc.textMuted }}>Log Out</p>
+        </button>
+      </div>
     </div>
   );
 }
@@ -204,8 +210,8 @@ function TopBar() {
   return (
     <div className="flex items-center justify-end gap-[16px] px-[20px] py-[16px] shrink-0">
       <a
-        href="https://wagmi.cktransientinn.tech/app/"
-        target="_blank"
+        href="/app/?connect=1"
+        target="_top"
         rel="noopener noreferrer"
         className="inline-block"
       >
@@ -267,8 +273,8 @@ function MobileHeader({ onMenuClick }: { onMenuClick: () => void }) {
       </button>
       <div className="flex-1" />
       <a
-        href="https://wagmi.cktransientinn.tech/app/"
-        target="_blank"
+        href="/app/?connect=1"
+        target="_top"
         rel="noopener noreferrer"
         className="inline-block"
       >
@@ -333,8 +339,8 @@ function MobileSidebarOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
           className="flex items-center gap-[8px] px-[20px] mb-[40px] cursor-pointer"
           onClick={() => handleNavClick("/")}
         >
-          <div className="size-[60px] relative shrink-0">
-            <img alt="" className="absolute inset-0 max-w-none object-cover pointer-events-none size-full" src={imgCe376E5FD79248AaA9C0B819Bff1258ARemovebgPreview1} />
+          <div className="size-[60px] relative shrink-0 overflow-hidden rounded-lg">
+            <img alt="Wealth Wards" src={logoIcon} width={60} height={60} className="absolute inset-0 size-full object-contain pointer-events-none" />
           </div>
           <div className="flex flex-col">
             <p className="font-['Montserrat',sans-serif] font-semibold text-[16px]" style={{ color: tc.textPrimary }}>WEALTH WARDS</p>
@@ -377,19 +383,24 @@ function MobileSidebarOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
               </button>
             );
           })}
-        </div>
 
-        {/* Log Out */}
-        <button
-          className="flex gap-[19px] items-center px-[50px] cursor-pointer hover:opacity-80 transition-opacity"
-          onClick={() => {
-            toast.success("Logged out successfully");
-            handleNavClick("/");
-          }}
-        >
-          <LogoutIcon />
-          <p className="font-['Inter',sans-serif] font-medium text-[18px]" style={{ color: tc.textMuted }}>Log Out</p>
-        </button>
+          {/* Log Out */}
+          <button
+            className="flex gap-[19px] items-center px-[25px] py-[16px] rounded-[16px] cursor-pointer hover:opacity-80 transition-opacity mt-auto"
+            onClick={async () => {
+              try {
+                await logoutFromBackend();
+                toast.success("Logged out successfully");
+                handleNavClick("/");
+              } catch (error) {
+                toast.error("Failed to logout");
+              }
+            }}
+          >
+            <LogoutIcon />
+            <p className="font-['Inter',sans-serif] font-medium text-[18px]" style={{ color: tc.textMuted }}>Log Out</p>
+          </button>
+        </div>
       </div>
     </>
   );

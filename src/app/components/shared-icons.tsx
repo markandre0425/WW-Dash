@@ -20,7 +20,7 @@ export function EthLogo({ size = 12 }: { size?: number }) {
 export function EthBadge() {
   return (
     <div className="flex items-center gap-[4px] bg-[rgba(0,0,0,0.4)] rounded-[25px] pl-[5px] pr-[10px] py-[5px]">
-      <div className="flex items-start p-[5px] rounded-[25px] shrink-0" style={{ backgroundImage: "linear-gradient(144.638deg, rgb(255, 255, 255) 6.1321%, rgba(217, 217, 217, 0.71) 99.078%)" }}>
+      <div className="flex items-center justify-center p-[5px] rounded-full shrink-0 size-[22px]" style={{ backgroundImage: "linear-gradient(144.638deg, rgb(255, 255, 255) 6.1321%, rgba(217, 217, 217, 0.71) 99.078%)" }}>
         <EthLogo size={12} />
       </div>
       <p className="font-['Inter',sans-serif] font-medium text-[12px] text-white">ETH</p>
