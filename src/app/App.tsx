@@ -2,6 +2,7 @@ import { RouterProvider } from "react-router";
 import { Toaster } from "sonner";
 import { router } from "./routes";
 import { ThemeProvider, useTheme } from "./components/theme-context";
+import { UserProfileProvider } from "./components/user-profile-context";
 
 function AppInner() {
   const { isDark } = useTheme();
@@ -26,7 +27,9 @@ function AppInner() {
 export default function App() {
   return (
     <ThemeProvider>
-      <AppInner />
+      <UserProfileProvider>
+        <AppInner />
+      </UserProfileProvider>
     </ThemeProvider>
   );
 }
