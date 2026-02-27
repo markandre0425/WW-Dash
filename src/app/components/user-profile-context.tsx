@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
 
 export interface UserProfile {
   displayName: string;
@@ -28,12 +28,13 @@ const getApiUrl = () => {
   const apiUrl = import.meta.env.VITE_API_URL;
   if (apiUrl) return apiUrl;
 
-  // In development, route API calls to port 3001
-  if (import.meta.env.DEV) {
-    return "http://localhost:3001";
+  const hostname = window.location.hostname;
+  // Always use port 3001 on localhost/127.0.0.1, same origin elsewhere
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    return `http://${hostname}:3001`;
   }
 
-  // In production, use same origin
+  // In production or non-localhost, use same origin
   return "";
 };
 
@@ -42,7 +43,7 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchProfile = async () => {
+  const fetchProfile = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -72,9 +73,9 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const updateProfile = async (updates: Partial<UserProfile>) => {
+  const updateProfile = useCallback(async (updates: Partial<UserProfile>) => {
     setLoading(true);
     setError(null);
     try {
@@ -98,7 +99,7 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   return (
     <UserProfileContext.Provider
