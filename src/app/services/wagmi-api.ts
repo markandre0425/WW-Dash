@@ -4,7 +4,11 @@
  * session as the Wagmi app (SIWE cookie).
  */
 
-const API_BASE = (import.meta.env.VITE_API_URL as string) || 'http://localhost:3001';
+// Resolve the API base URL. When the dashboard is embedded under the root
+// Vite dev server (e.g. at /dashboard/), use same-origin requests so cookies
+// set by the /api proxy on the same host are included automatically.
+// Only fall back to an absolute URL when VITE_API_URL_WEB or VITE_API_URL is explicitly set.
+const API_BASE = (import.meta.env.VITE_API_URL_WEB as string) || (import.meta.env.VITE_API_URL as string) || '';
 
 function fetchApi<T>(path: string, options?: RequestInit): Promise<T> {
   const url = path.startsWith('http') ? path : `${API_BASE}${path}`;

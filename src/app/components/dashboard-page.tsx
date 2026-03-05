@@ -383,7 +383,7 @@ function usePortfolioData(walletAddress: string | null) {
         loading: false,
       });
     }
-  }, []);
+  }, [walletAddress]);
 
   useEffect(() => {
     fetchPortfolio();

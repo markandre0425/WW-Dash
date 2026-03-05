@@ -6,8 +6,9 @@
  * Price: Backend (Moralis server-side) first, CoinGecko fallback
  */
 
-// Backend API base (Wagmi server). In dev set VITE_API_URL=http://localhost:3001 so dashboard can reach the API.
-const API_BASE = (import.meta.env.VITE_API_URL as string) || '';
+// Backend API base — same-origin by default (Vite proxy in dev, same host in prod).
+// Set VITE_API_URL_WEB in production to point to the deployed API.
+const API_BASE = (import.meta.env.VITE_API_URL_WEB as string) || (import.meta.env.VITE_API_URL as string) || '';
 
 // Known token id -> mainnet contract address (for backend /api/token-price which uses contract address)
 const TOKEN_ID_TO_ADDRESS: Record<string, string> = {

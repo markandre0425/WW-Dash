@@ -23,18 +23,14 @@ const UserProfileContext = createContext<UserProfileContextType>({
   fetchProfile: async () => {},
 });
 
-// Get API base URL - use port 3001 for backend
+// Get API base URL — use same-origin requests by default so the auth
+// cookie set by the /api proxy (same host) is included in every fetch.
+// Only specify an absolute URL when VITE_API_URL_WEB / VITE_API_URL is explicitly provided.
 const getApiUrl = () => {
-  const apiUrl = import.meta.env.VITE_API_URL;
+  const apiUrl = import.meta.env.VITE_API_URL_WEB || import.meta.env.VITE_API_URL;
   if (apiUrl) return apiUrl;
 
-  const hostname = window.location.hostname;
-  // Always use port 3001 on localhost/127.0.0.1, same origin elsewhere
-  if (hostname === 'localhost' || hostname === '127.0.0.1') {
-    return `http://${hostname}:3001`;
-  }
-
-  // In production or non-localhost, use same origin
+  // Same-origin — works when served behind the root Vite proxy or in production
   return "";
 };
 
