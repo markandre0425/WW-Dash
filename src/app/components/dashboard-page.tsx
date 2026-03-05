@@ -21,6 +21,7 @@ import {
   EthereumLogo,
 } from "./shared-icons";
 import { useTheme, themeColors } from "./theme-context";
+import { useUserProfile } from "./user-profile-context";
 import { Button, PrimaryButton, SecondaryButton } from "./button-styles";
 import { BlockchainAPI } from "../services/blockchain-api";
 import { useWagmiSession } from "../hooks/useWagmiSession";
@@ -1198,6 +1199,40 @@ function tokenBadgeBg(symbol: string) {
 
 /* Wallet Address */
 
+/* Profile Mini Card (shown in sidebar) */
+
+function ProfileMiniCard() {
+  const { profile, isConnected } = useUserProfile();
+  const { isDark } = useTheme();
+  const tc = themeColors(isDark);
+
+  return (
+    <div className="backdrop-blur-[10px] bg-[#2c2c2c]/60 rounded-[16px] p-[20px] flex items-center gap-[14px]">
+      <div className="size-[52px] shrink-0 rounded-full overflow-hidden border-2 border-[rgba(0,170,255,0.4)]">
+        <img
+          alt="Profile"
+          className="size-full object-cover"
+          src={profile.avatarUrl || "/avatar/avatar1.jpg"}
+        />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="font-['Inter',sans-serif] font-bold text-[16px] text-white truncate">{profile.displayName}</p>
+        <p className="font-['Inter',sans-serif] text-[12px] text-[#86909c] truncate">
+          {isConnected ? (profile.email || "Edit profile to add email") : "Connect wallet to edit"}
+        </p>
+      </div>
+      {!isConnected && (
+        <div className="shrink-0">
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="#666" strokeWidth="2">
+            <rect x="3" y="11" width="18" height="11" rx="2" />
+            <path d="M7 11V7a5 5 0 0110 0v4" />
+          </svg>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function WalletAddress() {
   const [copied, setCopied] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -1408,6 +1443,7 @@ export function DashboardPage() {
 
       {/* Right sidebar – 5 columns on desktop, stacks below on mobile */}
       <div className="lg:col-span-5 flex flex-col gap-[16px] min-w-0">
+        <ProfileMiniCard />
         <MarketOverview />
         <WalletAddress />
         <JoinCommunity />

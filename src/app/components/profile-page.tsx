@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import imgEllipse1 from "figma:asset/dcce5012742dbc156a98520c179d4f83b729b23b.png";
 import { EthLogo, ChevronDownIcon } from "./shared-icons";
 import { PrimaryButton, SecondaryButton } from "./button-styles";
-import { useUserProfile } from "./user-profile-context";
+import { useUserProfile, DEFAULT_PROFILE } from "./user-profile-context";
+import { useWagmiSession } from "../hooks/useWagmiSession";
 
 // Avatar URLs - served from public/avatar folder
 const DEFAULT_AVATARS = [
@@ -20,11 +20,14 @@ const DEFAULT_AVATARS = [
 ];
 
 export function ProfilePage() {
-  const { profile, updateProfile, fetchProfile } = useUserProfile();
-  const [displayName, setDisplayName] = useState("Lindsay");
-  const [email, setEmail] = useState("lindsay@wealthwards.io");
-  const [bio, setBio] = useState("Crypto enthusiast and long-term hodler. Building wealth, one block at a time.");
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const { profile, isConnected, updateProfile, fetchProfile } = useUserProfile();
+  const { address } = useWagmiSession();
+  const walletConnected = isConnected || !!address;
+
+  const [displayName, setDisplayName] = useState("Default");
+  const [email, setEmail] = useState("");
+  const [bio, setBio] = useState(DEFAULT_PROFILE.bio);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(DEFAULT_PROFILE.avatarUrl);
   const [editing, setEditing] = useState(false);
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -35,12 +38,12 @@ export function ProfilePage() {
 
   useEffect(() => {
     if (profile) {
-      setDisplayName(profile.displayName || "Lindsay");
-      setEmail(profile.email || "lindsay@wealthwards.io");
+      setDisplayName(profile.displayName || "Default");
+      setEmail(profile.email || "");
       setBio(
-        profile.bio || "Crypto enthusiast and long-term hodler. Building wealth, one block at a time."
+        profile.bio || DEFAULT_PROFILE.bio
       );
-      setAvatarUrl(profile.avatarUrl || null);
+      setAvatarUrl(profile.avatarUrl || DEFAULT_PROFILE.avatarUrl);
     }
   }, [profile]);
 
@@ -112,7 +115,7 @@ export function ProfilePage() {
   return (
     <div className="flex gap-[20px] flex-1">
       {/* Avatar Picker Backdrop and Modal (At top level to avoid clipping) */}
-      {editing && showAvatarPicker && (
+      {walletConnected && editing && showAvatarPicker && (
         <>
           <div
             className="fixed inset-0 z-40"
@@ -167,16 +170,24 @@ export function ProfilePage() {
           <div className="flex items-start gap-[24px]">
             <div
               className="relative size-[96px] shrink-0 rounded-full overflow-hidden border-2 border-[rgba(0,170,255,0.5)] cursor-pointer group"
-              onClick={() => editing && setShowAvatarPicker(!showAvatarPicker)}
+              onClick={() => walletConnected && editing && setShowAvatarPicker(!showAvatarPicker)}
             >
               <img
                 alt=""
                 className="size-full object-cover"
-                src={avatarUrl || imgEllipse1}
+                src={avatarUrl || DEFAULT_PROFILE.avatarUrl || "/avatar/avatar1.jpg"}
               />
-              {editing && (
+              {walletConnected && editing && (
                 <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                   <p className="text-white text-sm font-medium">Change</p>
+                </div>
+              )}
+              {!walletConnected && (
+                <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                  <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="#888" strokeWidth="2">
+                    <rect x="3" y="11" width="18" height="11" rx="2" />
+                    <path d="M7 11V7a5 5 0 0110 0v4" />
+                  </svg>
                 </div>
               )}
             </div>
@@ -184,7 +195,7 @@ export function ProfilePage() {
             <div className="flex-1">
               <div className="flex items-center justify-between mb-[16px]">
                 <div>
-                  {editing ? (
+                  {walletConnected && editing ? (
                     <input
                       className="bg-[#2b2b2b] rounded-[8px] px-[12px] py-[6px] font-['Inter',sans-serif] font-bold text-[24px] text-white outline-none w-full"
                       value={displayName}
@@ -193,32 +204,42 @@ export function ProfilePage() {
                   ) : (
                     <p className="font-['Inter',sans-serif] font-bold text-[24px] text-white">{displayName}</p>
                   )}
-                  {editing ? (
+                  {walletConnected && editing ? (
                     <input
                       className="bg-[#2b2b2b] rounded-[8px] px-[12px] py-[4px] font-['Inter',sans-serif] text-[14px] text-[#86909c] outline-none mt-[4px] w-full"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                     />
                   ) : (
-                    <p className="font-['Inter',sans-serif] font-normal text-[14px] text-[#86909c] mt-[4px]">{email}</p>
+                    <p className="font-['Inter',sans-serif] font-normal text-[14px] text-[#86909c] mt-[4px]">{email || (!walletConnected ? "Connect wallet to edit" : "")}</p>
                   )}
                 </div>
-                {editing ? (
-                  <div className="flex gap-[8px]">
-                    <SecondaryButton onClick={() => setEditing(false)}>
-                      Cancel
-                    </SecondaryButton>
-                    <PrimaryButton onClick={handleSave}>
-                      Save
+                {walletConnected ? (
+                  editing ? (
+                    <div className="flex gap-[8px]">
+                      <SecondaryButton onClick={() => setEditing(false)}>
+                        Cancel
+                      </SecondaryButton>
+                      <PrimaryButton onClick={handleSave}>
+                        Save
+                      </PrimaryButton>
+                    </div>
+                  ) : (
+                    <PrimaryButton onClick={() => setEditing(true)}>
+                      Edit Profile
                     </PrimaryButton>
-                  </div>
+                  )
                 ) : (
-                  <PrimaryButton onClick={() => setEditing(true)}>
-                    Edit Profile
-                  </PrimaryButton>
+                  <a
+                    href="/app/?connect=1"
+                    target="_top"
+                    className="bg-[#0FC6C2]/20 rounded-[12px] h-[36px] flex items-center justify-center px-[16px] cursor-pointer hover:bg-[#0FC6C2]/30 transition-colors"
+                  >
+                    <p className="font-['Poppins',sans-serif] font-semibold text-[14px] text-[#0FC6C2]">Connect to Edit</p>
+                  </a>
                 )}
               </div>
-              {editing ? (
+              {walletConnected && editing ? (
                 <textarea
                   className="bg-[#2b2b2b] rounded-[8px] px-[12px] py-[8px] font-['Inter',sans-serif] text-[14px] text-white/80 outline-none w-full resize-none"
                   rows={2}

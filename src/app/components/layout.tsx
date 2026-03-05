@@ -1,7 +1,6 @@
 import { Outlet, useNavigate, useLocation } from "react-router";
 import { toast } from "sonner";
 import { useState } from "react";
-import imgEllipse1 from "figma:asset/dcce5012742dbc156a98520c179d4f83b729b23b.png";
 import {
   DashboardIcon,
   SettingsIcon,
@@ -12,6 +11,7 @@ import {
   CloseIcon,
 } from "./shared-icons";
 import { useTheme, themeColors } from "./theme-context";
+import { useUserProfile } from "./user-profile-context";
 import logoIcon from "@/assets/newicon.png";
 import { Button } from "./button-styles";
 import { useIsMobile } from "./ui/use-mobile";
@@ -206,26 +206,29 @@ function TopBar() {
   const navigate = useNavigate();
   const { isDark } = useTheme();
   const tc = themeColors(isDark);
+  const { profile, isConnected } = useUserProfile();
 
   return (
     <div className="flex items-center justify-end gap-[16px] px-[20px] py-[16px] shrink-0">
-      <a
-        href="/app/?connect=1"
-        target="_top"
-        rel="noopener noreferrer"
-        className="inline-block"
-      >
-        <Button size="md">
-          Connect Account
-        </Button>
-      </a>
+      {!isConnected && (
+        <a
+          href="/app/?connect=1"
+          target="_top"
+          rel="noopener noreferrer"
+          className="inline-block"
+        >
+          <Button size="md">
+            Connect Account
+          </Button>
+        </a>
+      )}
       <button
         className="flex items-center gap-[12px] cursor-pointer hover:opacity-80 transition-opacity"
         onClick={() => navigate("/profile")}
       >
-        <p className="font-['Inter',sans-serif] font-medium text-[18px]" style={{ color: tc.textMuted }}>Lindsay</p>
+        <p className="font-['Inter',sans-serif] font-medium text-[18px]" style={{ color: tc.textMuted }}>{profile.displayName}</p>
         <div className="size-[48px] shrink-0 rounded-full overflow-hidden">
-          <img alt="" className="size-full object-cover" src={imgEllipse1} />
+          <img alt="" className="size-full object-cover" src={profile.avatarUrl || "/avatar/avatar1.jpg"} />
         </div>
       </button>
     </div>

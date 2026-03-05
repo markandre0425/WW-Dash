@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, type ReactNode } from "react";
+import { getWalletSession } from "../services/wagmi-api";
 
 export interface UserProfile {
   displayName: string;
@@ -7,8 +8,43 @@ export interface UserProfile {
   avatarUrl: string | null;
 }
 
+// Avatar URLs available for default profile assignment
+const AVATAR_POOL = [
+  "/avatar/avatar1.jpg",
+  "/avatar/avatar2.jpg",
+  "/avatar/avatar3.jpg",
+  "/avatar/avatar4.jpg",
+  "/avatar/avatar5.jpg",
+  "/avatar/avatar6.jpg",
+  "/avatar/avatar7.jpg",
+  "/avatar/avatar8.jpg",
+  "/avatar/avatar9.jpg",
+  "/avatar/avatar10.jpg",
+];
+
+/** Pick a stable-ish random avatar (seeded per browser session via sessionStorage). */
+function getDefaultAvatar(): string {
+  const key = "ww_default_avatar_idx";
+  let idx = parseInt(sessionStorage.getItem(key) ?? "", 10);
+  if (Number.isNaN(idx) || idx < 0 || idx >= AVATAR_POOL.length) {
+    idx = Math.floor(Math.random() * AVATAR_POOL.length);
+    sessionStorage.setItem(key, String(idx));
+  }
+  return AVATAR_POOL[idx];
+}
+
+export const DEFAULT_PROFILE: UserProfile = {
+  displayName: "Default",
+  email: "",
+  bio: "Connect your wallet to personalise your profile.",
+  avatarUrl: getDefaultAvatar(),
+};
+
 interface UserProfileContextType {
-  profile: UserProfile | null;
+  /** The resolved profile: either the server profile or the default. */
+  profile: UserProfile;
+  /** True when a wallet address session exists. */
+  isConnected: boolean;
   loading: boolean;
   error: string | null;
   updateProfile: (profile: Partial<UserProfile>) => Promise<void>;
@@ -16,7 +52,8 @@ interface UserProfileContextType {
 }
 
 const UserProfileContext = createContext<UserProfileContextType>({
-  profile: null,
+  profile: DEFAULT_PROFILE,
+  isConnected: false,
   loading: false,
   error: null,
   updateProfile: async () => {},
@@ -35,15 +72,41 @@ const getApiUrl = () => {
 };
 
 export function UserProfileProvider({ children }: { children: ReactNode }) {
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [serverProfile, setServerProfile] = useState<UserProfile | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Resolved profile: prefer server data, fall back to default
+  const profile = useMemo<UserProfile>(
+    () => (isConnected && serverProfile ? serverProfile : DEFAULT_PROFILE),
+    [isConnected, serverProfile],
+  );
 
   const fetchProfile = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const apiUrl = getApiUrl();
+
+      // Check wallet session via the correct /api/walletAddress endpoint
+      let hasAddress = false;
+      try {
+        const session = await getWalletSession();
+        hasAddress = !!session?.address;
+      } catch {
+        // 401 or network error — no session
+        hasAddress = false;
+      }
+
+      setIsConnected(hasAddress);
+      if (!hasAddress) {
+        setServerProfile(null);
+        setLoading(false);
+        return;
+      }
+
+      // Wallet is connected – fetch server profile
       console.log("Fetching profile from:", `${apiUrl}/api/user/profile`);
       const response = await fetch(`${apiUrl}/api/user/profile`, {
         method: "GET",
@@ -53,6 +116,7 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
       if (!response.ok) {
         if (response.status === 401) {
           console.log("Not authenticated - profile fetch skipped");
+          setIsConnected(false);
           setError(null);
           return;
         }
@@ -60,7 +124,7 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
       }
       const data = await response.json();
       if (data.profile) {
-        setProfile(data.profile);
+        setServerProfile(data.profile);
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown error";
@@ -86,21 +150,27 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
         throw new Error("Failed to save profile");
       }
       const data = await response.json();
-      setProfile(data.profile);
+      setServerProfile(data.profile);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown error";
       setError(message);
-      console.error("Failed to update profile:", err);
+      console.error("fetchProfile: Failed to update profile:", err);
       throw err;
     } finally {
       setLoading(false);
     }
   }, []);
 
+  // Fetch profile on mount
+  useEffect(() => {
+    fetchProfile();
+  }, [fetchProfile]);
+
   return (
     <UserProfileContext.Provider
       value={{
         profile,
+        isConnected,
         loading,
         error,
         updateProfile,
