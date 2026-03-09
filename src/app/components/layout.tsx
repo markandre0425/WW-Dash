@@ -17,6 +17,79 @@ import { Button } from "./button-styles";
 import { useIsMobile } from "./ui/use-mobile";
 import { logoutFromBackend } from "../services/wagmi-api";
 
+function clearWalletClientState() {
+  const storagePrefixes = ["wagmi.", "walletconnect", "@appkit/"];
+
+  for (let i = localStorage.length - 1; i >= 0; i -= 1) {
+    const key = localStorage.key(i);
+    if (!key) continue;
+    if (storagePrefixes.some((prefix) => key.startsWith(prefix))) {
+      localStorage.removeItem(key);
+    }
+  }
+}
+
+async function disconnectWalletIfPossible() {
+  const provider = (window as Window & {
+    ethereum?: { request?: (args: { method: string; params?: unknown[] }) => Promise<unknown> };
+  }).ethereum;
+
+  if (!provider?.request) return;
+
+  try {
+    // Remove site from wallet connected permissions when provider supports it.
+    await provider.request({
+      method: "wallet_revokePermissions",
+      params: [{ eth_accounts: {} }],
+    });
+  } catch {
+    // Some wallets do not implement revoke permissions; backend logout still signs out SIWE.
+  }
+}
+
+function getLandingUrl(): string {
+  const configured = (import.meta.env.VITE_LANDING_URL as string | undefined)?.trim();
+  if (configured) return configured;
+
+  // WW-Dash standalone dev server runs on :5174, while landing runs on :5173.
+  if (window.location.port === "5174") {
+    return `${window.location.protocol}//${window.location.hostname}:5173/`;
+  }
+
+  return "/";
+}
+
+async function logoutAndRedirectToLanding() {
+  let backendLogoutFailed = false;
+
+  try {
+    await logoutFromBackend();
+  } catch {
+    backendLogoutFailed = true;
+  }
+
+  await disconnectWalletIfPossible();
+  clearWalletClientState();
+
+  if (backendLogoutFailed) {
+    toast.error("Logout request failed, redirecting anyway");
+  } else {
+    toast.success("Logged out successfully");
+  }
+
+  const landingUrl = getLandingUrl();
+
+  try {
+    if (window.top && window.top !== window) {
+      window.top.location.replace(landingUrl);
+    }
+  } catch {
+    // Ignore top-window navigation failures and always navigate current window.
+  }
+
+  window.location.replace(landingUrl);
+}
+
 /* Background blobs */
 
 function BackgroundBlobs() {
@@ -183,13 +256,7 @@ function Sidebar() {
         <button
           className="flex gap-[19px] items-center px-[25px] py-[16px] rounded-[16px] cursor-pointer hover:opacity-80 transition-opacity mt-auto"
           onClick={async () => {
-            try {
-              await logoutFromBackend();
-              toast.success("Logged out successfully");
-              navigate("/");
-            } catch (error) {
-              toast.error("Failed to logout");
-            }
+            await logoutAndRedirectToLanding();
           }}
         >
           <LogoutIcon />
@@ -391,13 +458,7 @@ function MobileSidebarOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: (
           <button
             className="flex gap-[19px] items-center px-[25px] py-[16px] rounded-[16px] cursor-pointer hover:opacity-80 transition-opacity mt-auto"
             onClick={async () => {
-              try {
-                await logoutFromBackend();
-                toast.success("Logged out successfully");
-                handleNavClick("/");
-              } catch (error) {
-                toast.error("Failed to logout");
-              }
+              await logoutAndRedirectToLanding();
             }}
           >
             <LogoutIcon />
